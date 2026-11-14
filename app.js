@@ -516,11 +516,12 @@ async function enterRoom(id) {
   if (view !== "base") { go("room", r.id); arriveAnim(); return; }
   if (id === "hub") {
     const title = `<div class="ey">${esc(m.name)} · ${esc(ME.base)}</div><div class="nm">${esc(r.name)}</div>`;
-    // down through the skylight of the hub, then the laptop is set on the desk and opens
-    if (!reducedMotion()) { const sc = $("#base .scene"); $("#base-markers").style.opacity = 0; sc.style.animation = "none"; sc.style.transformOrigin = `${m.x}% ${m.y}%`;
-      await sc.animate([{ transform: "scale(1)", filter: "brightness(1)" }, { transform: "scale(4.5)", filter: "brightness(1.5)" }], { duration: 520, easing: "cubic-bezier(.55,0,.8,.3)", fill: "forwards" }).finished;
-      const ok = await playClip({ clip: "console-in", fromFrame: $("#base"), rate: 1, title, show: () => { go("room", "command"); sc.getAnimations().forEach((a) => a.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; }, toFrameSel: "#room" });
-      if (ok) return; sc.getAnimations().forEach((a) => a.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; }
+    // one continuous shot: from the sky view down through the hub's skylight into the study, to the desk, and the laptop is set down and opened
+    if (!reducedMotion()) {
+      $("#base-markers").style.opacity = 0;
+      const ok = await playClip({ clip: "base-console", fromFrame: $("#base"), title, show: () => { go("room", "command"); $("#base-markers").style.opacity = ""; }, toFrameSel: "#room" });
+      if (ok) return; $("#base-markers").style.opacity = "";
+    }
   }
   if (reducedMotion()) { go("room", r.id); return; }
   moving = true;
@@ -552,7 +553,7 @@ function go(v, room, focus, quiet) {
   $$(".view").forEach((el) => (el.hidden = true));
   $("#view-" + v).hidden = false;
   if (v === "planet") { renderPlanet(); primeClip("planet-base"); }
-  if (v === "base") { renderBase(); primeClip("console-in"); }
+  if (v === "base") { renderBase(); primeClip("base-console"); }
   if (v === "room") { renderRoom(); if (currentRoom === "command") { primeClip("door-command-living"); primeClip("console-out"); } else primeClip(currentRoom === "living" ? "door-living-command" : "console-in"); const i = HUB.indexOf(currentRoom); if (i >= 0) { primeClip(`door-${currentRoom}-${HUB[(i + 1) % HUB.length]}`); primeClip(`door-${currentRoom}-${HUB[(i + HUB.length - 1) % HUB.length]}`); } }
   if (v === "corridor") { openCorridorView(focus, quiet); primeClip("hatch-" + ROOMS[corrIdx].id); }
   $("#stage").scrollTop = 0;
