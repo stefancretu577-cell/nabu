@@ -50,7 +50,7 @@ const modById = (id) => MODULES.find((m) => m.id === id);
 const ROOMS = [
   { id: "bedroom", module: "hub", name: "Bedroom", img: "room-bedroom", empty: true, doors: { left: [11.2, 52], right: [88.3, 52] }, hotspots: [],
     slots: [{ id: "bed", x: 38, y: 86, items: ["bed"] }, { id: "ward", x: 70, y: 68, items: ["wardrobe", "bookshelf"] }, { id: "night", x: 58, y: 77, items: ["nightstand", "lamp"] }, { id: "wall", x: 30, y: 46, items: ["painting", "poster", "wallshelf"] }, { id: "floor", x: 50, y: 95, items: ["rug"] }] },
-  { id: "living", module: "hub", name: "Living quarters", img: "room-living", hotspots: [{ x: 9, y: 30, label: "Health console", act: "console", ic: "check" }, { x: 15, y: 57, label: "Desk · Write", act: "desk", ic: "pen" }, { x: 83.4, y: 52, label: "Wall sheets · Tasks", act: "sheets", ic: "check" }, { x: 49.8, y: 40, label: "Window · Planet", act: "planet", ic: "globe" }],
+  { id: "living", module: "hub", name: "Living quarters", img: "room-living", hotspots: [{ x: 15, y: 57, label: "Desk · Write", act: "desk", ic: "pen" }, { x: 83.4, y: 52, label: "Wall sheets · Tasks", act: "sheets", ic: "check" }, { x: 49.8, y: 40, label: "Window · Planet", act: "planet", ic: "globe" }],
     slots: [{ id: "center", x: 52, y: 86, items: ["sofa", "armchair", "beanbag"] }, { id: "low", x: 38, y: 92, items: ["coffeetable", "rug"] }] },
   { id: "command", module: "hub", name: "Health console", img: "room-command", command: true, noDrift: true, hotspots: [], slots: [] },
   { id: "mess", module: "hub", name: "Mess hall", img: "room-mess", empty: true, doors: { left: [10.3, 52], right: [90, 52] }, hotspots: [],
@@ -646,7 +646,7 @@ function renderRoom(arrive) {
     r.hotspots.map((h, k) => `<button class="hotspot" style="left:${h.x}%;top:${h.y}%;--d:${k * 90}ms" data-i="${k}"><span class="hs-ic">${ICON[h.ic] || ""}</span>${esc(h.label)}</button>`).join("") +
     openSlots.map((s, k) => `<button class="slot" style="left:${s.x}%;top:${s.y}%;--d:${k * 70}ms" data-slot="${s.id}" aria-label="Place ${esc(ITEMS[s.items[0]].name)} here"><span>+</span><em>${esc(ITEMS[s.items[0]].name)}</em></button>`).join("") +
     (inHub && r.doors ? door("left") + door("right") : "") +
-    (r.id === "living" ? `<button class="wallscreen" id="wallscreen" aria-label="Mission clock, open the health screen"></button>` : "");
+    (r.id === "living" ? `<button class="wallscreen" id="wallscreen" aria-label="Mission clock, open the Health console"></button>` : "");
   // rooms without drawn doors get doorways on the frame edge, outside the moving image
   $("#room-ui").innerHTML = (inHub && !r.doors ? door("left") + door("right") : "") + exitBtn +
     (r.command ? `<button class="console-leave" id="console-leave"><b>‹</b><span><small>Close the laptop</small>Living quarters</span></button>` : "") +
@@ -882,7 +882,7 @@ function renderWallScreen() {
     <span>Phase</span><span class="r"></span><span class="r">${esc(phaseOf(S.day))}</span>
     <span>Delay</span><span class="r"></span><span class="r">${delay} min</span>
     <span>Talk</span><span class="r"></span><span class="r">in ${14 - ((S.day - 1) % 14)} d</span></div>
-    <div class="ws-foot">tap for the health screen</div></div><i class="ws-scan"></i><i class="ws-glare"></i>`;
+    <div class="ws-foot">tap to open the Health console ›</div></div><i class="ws-scan"></i><i class="ws-glare"></i>`;
 }
 // The table is laid out flat (WS_W × WS_H) and projected onto the four corners of the glass in the photo,
 // so it follows the wall's perspective instead of floating on top of it.
