@@ -40,8 +40,9 @@ module.exports = async (req, res) => {
     }
     const since = Number(req.query.since || 0);
     const cur = await load(key);
-    if (!cur || cur.v <= since) return res.status(200).json({ v: cur ? cur.v : 0, same: true });
-    return res.status(200).json(cur);
+    const where = URL_ && TOKEN ? "redis" : "memory";
+    if (!cur || cur.v <= since) return res.status(200).json({ v: cur ? cur.v : 0, same: true, store: where });
+    return res.status(200).json({ ...cur, store: where });
   } catch (e) {
     return res.status(500).json({ error: String(e.message || e) });
   }
