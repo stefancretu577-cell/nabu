@@ -1,0 +1,8 @@
+# source art, archived clips and 3D meshes used only to produce the assets
+assets/src/
+tools/glb/
+*.bak
+*.ro.bak
+__pycache__/
+.DS_Store
+Thumbs.db

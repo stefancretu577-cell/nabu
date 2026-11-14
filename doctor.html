@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Behavioral Health Console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23c49bf0'/%3E%3Ccircle cx='12' cy='12' r='5' fill='%23f3e6ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Behavioral Health Console: a calm clinical tool. Flat surfaces, one accent, numbers in tabular mono. */
+:root {
+  --bg: #111018; --s1: #17161f; --s2: #1d1c26; --s3: #24232f; --bd: #2a2836; --bd2: #34323f;
+  --fg: #ecebf2; --fg2: #c4c2d0; --mut: #8d8a9e; --dim: #66637a;
+  --teal: #4cb8a5; --violet: #a993d6; --amber: #d6a446; --rose: #df6f6f; --blue: #7aa5e0;
+  --fd: "Chakra Petch", system-ui, sans-serif; --fb: "IBM Plex Sans", system-ui, sans-serif; --fm: "IBM Plex Mono", ui-monospace, monospace;
+  --r: 10px;
+  /* legacy names used by the markup */
+  --night: var(--bg); --hull: var(--s1); --hull-2: var(--s2); --line: var(--bd); --muted: var(--mut); --regolith: var(--fg2); --coin: var(--amber);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { min-height: 100vh; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--fb); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+.ok { --c: var(--teal); } .warn { --c: var(--amber); } .bad { --c: var(--rose); } .info { --c: var(--dim); }
+
+/* ── top bar ── */
+header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px; height: 60px; padding: 0 24px; background: rgba(17,16,24,.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--bd); }
+header > * { white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 10px; padding-right: 14px; border-right: 1px solid var(--bd); }
+.mark { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #efe4fb 0 26%, var(--violet) 27%); }
+.brand b { font: 700 14px var(--fd); letter-spacing: .24em; color: var(--fg); } .brand small { display: block; font: 500 12px var(--fb); color: var(--mut); letter-spacing: 0; }
+.hstat { display: flex; gap: 18px; font: 500 12.5px var(--fb); color: var(--mut); } .hstat b { color: var(--fg); font: 600 12.5px var(--fm); }
+.presence { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 5px 12px 5px 6px; border-radius: 9px; border: 1px solid var(--bd); }
+.presence .av { width: 28px; height: 28px; border-radius: 7px; } .presence b { font: 600 13px var(--fb); display: block; line-height: 1.2; }
+.presence small { display: block; color: var(--mut); font-size: 12px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.pdot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; display: inline-block; } .pdot.on { background: var(--teal); }
+.me { display: flex; align-items: center; gap: 9px; } .me .av { width: 32px; height: 32px; border-radius: 8px; } .me b { font: 600 13px var(--fb); display: block; line-height: 1.2; } .me small { color: var(--mut); font-size: 12px; }
+.switch, .freeze { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bd2); background: var(--s1); cursor: pointer; font-size: 13px; color: var(--fg2); display: inline-flex; align-items: center; gap: 8px; }
+.switch:hover, .freeze:hover { background: var(--s2); color: var(--fg); }
+.freeze i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); } .freeze.paused i { background: var(--amber); }
+.freeze.paused { border-color: rgba(214,164,70,.5); color: var(--fg); }
+.freeze b { padding: 1px 7px; border-radius: 6px; background: var(--amber); color: #241a05; font: 600 11px var(--fm); }
+.updated { font: 400 12px var(--fb); color: var(--mut); }
+.av { display: inline-block; flex: none; border-radius: 10px; background: url(assets/crew.webp) calc(var(--ax) * 33.3333%) calc(var(--ay) * 33.3333%) / 400% 400%; }
+
+/* ── layout ── */
+.wrap { display: grid; grid-template-columns: 264px minmax(0, 1fr) 340px; gap: 20px; padding: 20px 24px 48px; max-width: 1680px; margin: 0 auto; }
+.col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.box { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--r); padding: 16px 18px; }
+.box h2 { margin: 0 0 12px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font: 600 14px var(--fb); color: var(--fg); letter-spacing: 0; text-transform: none; }
+.box h2 em { font: 400 12.5px var(--fb); font-style: normal; color: var(--mut); }
+.empty { color: var(--mut); font-size: 13px; margin: 4px 0; }
+.btn { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--bd2); background: var(--s2); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--fg); }
+.btn:hover { background: var(--s3); } .btn.pri { background: var(--teal); border-color: var(--teal); color: #071d19; font-weight: 600; } .btn.pri:hover { filter: brightness(1.08); }
+.btn.vi { background: var(--s2); border-color: var(--bd2); color: var(--fg); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+textarea { width: 100%; min-height: 84px; resize: vertical; background: var(--bg); border: 1px solid var(--bd2); border-radius: 8px; color: var(--fg); font: 13.5px/1.5 var(--fb); padding: 10px 12px; }
+textarea:focus { outline: none; border-color: var(--violet); }
+
+/* ── crew ── */
+.base-h { margin: 14px 0 4px 8px; font: 500 12px var(--fb); color: var(--dim); } .base-h:first-child { margin-top: 0; }
+.cm { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border-radius: 8px; border: 0; background: none; text-align: left; cursor: pointer; }
+.cm .av { width: 34px; height: 34px; border-radius: 8px; } .cm b { display: block; font: 600 13.5px var(--fb); line-height: 1.25; } .cm small { color: var(--mut); font-size: 12px; }
+.cm:hover { background: var(--s2); } .cm.on { background: var(--s3); } .cm.on::before { content: ""; position: absolute; left: -18px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--violet); }
+.cm .sd { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+.cm .live { margin-left: auto; margin-right: -2px; font: 600 10px var(--fm); color: var(--teal); letter-spacing: .06em; }
+.privacy h2 { font-size: 13px; color: var(--fg2); margin-bottom: 8px; } .privacy h2 + ul { margin-bottom: 14px; }
+.privacy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; } .privacy li { position: relative; padding-left: 18px; font-size: 13px; color: var(--fg2); }
+.privacy li::before { content: "✓"; position: absolute; left: 0; color: var(--teal); } .privacy .no li { color: var(--mut); } .privacy .no li::before { content: "—"; color: var(--dim); }
+
+/* ── patient header ── */
+.herobox { padding: 18px; } .hero { display: flex; align-items: center; gap: 14px; }
+.hero .av { width: 56px; height: 56px; border-radius: 12px; }
+.hero h1 { margin: 0; font: 700 22px/1.2 var(--fd); letter-spacing: .01em; } .hero p { margin: 2px 0 0; color: var(--mut); font-size: 13px; }
+.hero .now { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 12.5px; color: var(--fg2); }
+.status { margin-left: auto; display: grid; justify-items: end; gap: 4px; }
+.status span { padding: 4px 10px; border-radius: 6px; font: 600 12px var(--fb); color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
+.status small { color: var(--mut); font-size: 12px; }
+
+/* ── key numbers: one strip ── */
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--s1); border: 1px solid var(--bd); border-radius: var(--r); }
+.kpi { padding: 14px 16px; border-right: 1px solid var(--bd); min-width: 0; } .kpi:last-child { border-right: 0; }
+.kpi b { display: block; font: 600 24px/1.1 var(--fm); letter-spacing: -.02em; } .kpi b small { font: 500 12px var(--fb); color: var(--mut); margin-left: 3px; letter-spacing: 0; }
+.kpi span { display: block; margin-top: 6px; font-size: 12.5px; color: var(--fg2); } .kpi em { display: block; margin-top: 1px; font: 400 12px var(--fb); font-style: normal; color: var(--mut); }
+.kpi.warn b, .kpi.bad b { color: var(--c); }
+.kpi.flash { animation: kflash 1.4s ease-out; } @keyframes kflash { 0% { background: rgba(76,184,165,.12); } }
+
+/* ── charts ── */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.charts > div:not(.box) { display: contents; }
+.ch svg { width: 100%; height: 140px; display: block; overflow: visible; }
+.ch .ln { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.ch .area { opacity: .07; } .ch .grid { stroke: var(--bd); } .ch .thr { stroke: var(--amber); stroke-dasharray: 4 4; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .8; }
+.ch .ax { font: 10px var(--fm); fill: var(--dim); } .ch .pt { stroke: var(--s1); stroke-width: 1.5; r: 2.6; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--mut); margin-top: 6px; } .legend i { display: inline-block; width: 10px; height: 2px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+/* ── activity, tables ── */
+.tl { display: grid; max-height: 340px; overflow: auto; }
+.ti { display: grid; grid-template-columns: 52px 10px 1fr; gap: 10px; align-items: start; padding: 7px 4px; border-bottom: 1px solid var(--bd); }
+.ti:last-child { border-bottom: 0; }
+.ti time { font: 500 12px var(--fm); color: var(--mut); } .ti i { width: 7px; height: 7px; margin-top: 7px; border-radius: 50%; background: var(--c); }
+.ti span { font-size: 13.5px; color: var(--fg); } .ti small { display: block; color: var(--mut); font-size: 12px; }
+.ti.new, .al.new, .gf.new { animation: rowIn 2.4s ease-out; } @keyframes rowIn { 0% { background: rgba(76,184,165,.14); } }
+table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padding: 8px 6px; border-bottom: 1px solid var(--bd); text-align: left; }
+th { color: var(--mut); font: 500 12px var(--fb); } td.n { font-family: var(--fm); font-size: 12.5px; } tbody tr:hover td { background: var(--s2); }
+.tag { padding: 2px 8px; border-radius: 6px; font: 600 11.5px var(--fb); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
+
+/* ── alerts ── */
+.feed { display: grid; max-height: 420px; overflow: auto; }
+.al { padding: 10px 2px 10px 12px; border-bottom: 1px solid var(--bd); position: relative; } .al:last-child { border-bottom: 0; }
+.al::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: var(--c); }
+.al b { font: 600 13.5px var(--fb); } .al p { margin: 2px 0 0; font-size: 13px; color: var(--fg2); } .al small { display: block; margin-top: 3px; font-size: 12px; color: var(--mut); }
+.sos { display: none; position: fixed; left: 50%; top: 72px; z-index: 30; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); padding: 16px 18px; border-radius: 10px; background: #2a1517; border: 1px solid #7c3434; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+.sos.on { display: block; animation: sosIn .3s ease-out; } @keyframes sosIn { from { opacity: 0; transform: translate(-50%, -8px); } }
+.sos b { font: 600 16px var(--fb); display: block; color: #ffdede; } .sos p { margin: 4px 0 12px; color: #e9c2c2; font-size: 13.5px; }
+
+/* ── contact ── */
+.ppc .big { font: 600 30px/1.1 var(--fm); } .ppc .big small { font: 400 13px var(--fb); color: var(--mut); margin-left: 4px; }
+.sent { display: grid; margin-top: 10px; border-top: 1px solid var(--bd); }
+.sent div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--bd); font-size: 13px; color: var(--fg2); }
+.sent em { font-style: normal; font: 500 12px var(--fb); color: var(--mut); white-space: nowrap; } .sent em.ok { color: var(--teal); } .sent em.later { color: var(--amber); }
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 40; max-width: 360px; padding: 11px 14px; border-radius: 8px; background: var(--s3); border: 1px solid var(--bd2); box-shadow: 0 12px 30px rgba(0,0,0,.4); font-size: 13.5px; animation: tIn .25s ease-out both; }
+@keyframes tIn { from { opacity: 0; transform: translateY(6px); } }
+
+/* ── live now ── */
+.livebox { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; }
+.livebox.off { grid-template-columns: 1fr auto; }
+.eye { width: 76px; height: 44px; } .eye svg { width: 100%; height: 100%; } .eye .lid { fill: var(--s1); transition: transform .25s ease-out; transform-origin: 50% 0; } .eye .ball { fill: url(#iris); } .eye .rim { fill: none; stroke: var(--teal); stroke-width: 2; }
+.lv-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 16px; }
+.lv-stats div b { display: block; font: 600 20px/1.2 var(--fm); } .lv-stats div span { font-size: 12px; color: var(--mut); }
+.lv-bar { grid-column: 1 / -1; height: 3px; margin-top: 10px; border-radius: 2px; background: var(--bd); overflow: hidden; } .lv-bar i { display: block; height: 100%; width: 0; background: var(--teal); transition: width 1.4s linear; }
+.lv-tag { display: flex; align-items: center; gap: 8px; font: 600 12px var(--fb); color: var(--teal); }
+
+/* ── reading ── */
+.rd { display: grid; }
+.rd-row { display: grid; grid-template-columns: 110px 1fr; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--bd); }
+.rd-row b { display: flex; align-items: center; gap: 8px; font: 500 13px var(--fb); color: var(--fg2); }
+.rd-row b::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
+.rd-row span { font-size: 13.5px; } .rd-row small { display: block; color: var(--mut); font-size: 12px; margin-top: 1px; }
+.rd-sum { margin-top: 12px; padding: 12px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c) 9%, var(--s1)); border: 1px solid color-mix(in srgb, var(--c) 30%, var(--bd)); font-size: 13.5px; color: var(--fg2); }
+.rd-sum b { display: block; font: 600 14px var(--fb); color: var(--c); margin-bottom: 1px; }
+.rd-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+/* ── journal · Guardian ── */
+.gd-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.gd-shield { width: 34px; height: 38px; flex: none; display: grid; place-items: center; color: #1a1426; font: 700 15px var(--fd); background: var(--violet); clip-path: polygon(50% 0, 100% 16%, 100% 56%, 50% 100%, 0 56%, 0 16%); }
+.gd-top b { display: block; font: 600 14px var(--fb); } .gd-top small { color: var(--mut); font-size: 12.5px; }
+.gd-chip { margin-left: auto; padding: 4px 10px; border-radius: 6px; font: 600 12px var(--fb); color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); white-space: nowrap; }
+.gd-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; border: 1px solid var(--bd); border-radius: 8px; }
+.gd-stats div { padding: 10px 12px; border-right: 1px solid var(--bd); } .gd-stats div:last-child { border-right: 0; }
+.gd-stats b { display: block; font: 600 18px/1.2 var(--fm); } .gd-stats span { font-size: 12px; color: var(--mut); }
+.gd-scan { display: flex; gap: 3px; height: 28px; align-items: flex-end; margin-bottom: 14px; }
+.gd-scan i { flex: 1; border-radius: 2px 2px 0 0; background: var(--bd2); min-height: 2px; } .gd-scan i.fl { background: var(--rose); }
+.gd-list { display: grid; border-top: 1px solid var(--bd); }
+.gf { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--bd); }
+.gf-lv { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; font: 600 14px var(--fm); color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.gf b { font: 600 14px var(--fb); display: block; } .gf p { margin: 2px 0 0; font-size: 13px; color: var(--fg2); }
+.gf .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; } .gf .meta span { font-size: 12px; color: var(--mut); } .gf .lock { color: var(--violet); }
+.gf-segs { display: flex; gap: 2px; margin-top: 8px; width: 120px; } .gf-segs i { flex: 1; height: 4px; border-radius: 2px; background: var(--bd2); } .gf-segs i.fl { background: var(--c); }
+.gf-act { display: grid; gap: 6px; justify-items: end; } .gf-act .btn { height: 30px; padding: 0 10px; font-size: 12.5px; } .gf-act em { font: 500 12px var(--fb); font-style: normal; color: var(--teal); }
+.gd-foot { margin: 12px 0 0; font-size: 12px; color: var(--mut); }
+
+/* ── history ── */
+.hchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.hchips button { height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--bd); background: none; cursor: pointer; font-size: 12.5px; color: var(--mut); }
+.hchips button:hover { color: var(--fg); } .hchips button.on { background: var(--s3); border-color: var(--bd2); color: var(--fg); }
+.hist { display: grid; gap: 8px; max-height: 560px; overflow: auto; }
+.hday { border: 1px solid var(--bd); border-radius: 8px; }
+.hday summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 70px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; }
+.hday summary::-webkit-details-marker { display: none; } .hday summary:hover { background: var(--s2); }
+.hday summary b { font: 600 13.5px var(--fb); } .hday summary .sm { display: flex; flex-wrap: wrap; gap: 4px 12px; } .hday summary .sm span { font-size: 12.5px; color: var(--mut); }
+.hday summary .sm span.w { color: var(--amber); } .hday summary .sm span.r { color: var(--rose); }
+.hday summary em { font-style: normal; color: var(--dim); transition: transform .2s; } .hday[open] summary em { transform: rotate(90deg); }
+.hday .ev { padding: 0 12px 8px; display: grid; border-top: 1px solid var(--bd); }
+.hnote { margin: 8px 0 2px; padding: 8px 10px; border-radius: 6px; background: var(--s2); border-left: 2px solid var(--violet); font-size: 13px; color: var(--fg2); }
+.hnote small { display: block; color: var(--mut); font-size: 12px; margin-bottom: 2px; }
+
+@media (max-width: 1560px) { .hstat { display: none; } .me small, .brand small { display: none; } }
+@media (max-width: 1280px) { .wrap { grid-template-columns: 240px minmax(0, 1fr); } .col.r { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .wrap { grid-template-columns: 1fr; padding: 12px; } .col.r { grid-template-columns: 1fr; } .kpis { grid-template-columns: 1fr 1fr; } .kpi { border-bottom: 1px solid var(--bd); } .charts { grid-template-columns: 1fr; } .me span, .presence span { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="mark"></span><div><b>NABU</b><small>Behavioral Health · Mission Lyra-1</small></div></div>
+  <div class="hstat"><span>Mission day <b id="h-day">1</b> / 180</span><span>Light delay <b id="h-delay">–</b></span></div>
+  <div class="presence" id="presence"></div>
+  <div class="me"><span class="av" style="--ax:3;--ay:3"></span><span><b>Dr. Irina Matei</b><small>Cognitive psychologist</small></span></div>
+  <button class="freeze" id="freeze" title="Pause updates while you read; nothing is lost"><i></i><span>Live</span></button>
+  <button class="switch" id="switch">Switch account</button>
+</header>
+<div class="sos" id="sos"></div>
+<div class="wrap">
+  <div class="col">
+    <div class="box"><h2>Crew <em id="n-crew"></em></h2><div id="crew"></div></div>
+    <div class="box privacy"><h2>This console receives</h2>
+      <ul><li>Guardian journal flags: category and level</li><li>Assessment numbers and test results</li><li>Fatigue from the camera, as numbers</li><li>Mood check-ins and workouts</li><li>How many journal pages were checked</li><li>“Are you OK?” check-ins</li></ul>
+      <h2>It never receives</h2><ul class="no"><li>Journal pages or chapters</li><li>Questionnaire answers</li><li>Camera images or video</li></ul></div>
+  </div>
+  <div class="col" id="main"></div>
+  <div class="col r">
+    <div class="box"><h2>Alerts <em id="n-al"></em></h2><div class="feed" id="feed"></div></div>
+    <div class="box ppc" id="ppc"></div>
+    <div class="box"><h2>Private notes <em style="font-size:11px;color:var(--muted)">only on this console</em></h2><textarea id="notes" placeholder="Notes for the next private conference…"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn vi" id="note-save">Save note to history</button></div></div>
+  </div>
+</div>
+<script>
+/* The psychologist's side of Nabu. Live data comes from the astronaut's account (same browser in this prototype):
+   "nabu.en.v2" (mission data), "nabu.live" (heartbeat), "nabu.inbox"/"nabu.inbox.replies" (messages both ways),
+   "nabu.crew.msg" + BroadcastChannel "nabu-crew" (emergencies). The other crew members are demo data. */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const CAT = { self: "Risk to self", others: "Risk to a crewmate", ship: "Risk to the habitat", medical: "Medical red flag", distress: "Low mood signals" };
+const LEVEL = { ok: "Steady", warn: "Watch", bad: "Act now", info: "No data yet" };
+const VERD = { "Apt": "Fit for duty", "Apt cu recomandări": "Fit, with recommendations", "Neapt": "Not fit today", "Admis cu recomandări": "Admitted, with recommendations" };
+const KIND = { test: "Test", mood: "Mood", exercise: "Workout", assessment: "Assessment", flag: "Guardian", checkin: "Check-in", contact: "Contact" };
+function rng(seed) { let s = 0; for (const c of seed) s = (s * 31 + c.charCodeAt(0)) >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const CREW = [
+  { id: "me", name: "Commander", role: "Commander", base: "Lyra Base", ax: 2, ay: 3, live: true },
+  { id: "alexander", name: "Alexander", role: "Flight engineer", base: "Lyra Base", ax: 0, ay: 0, tilt: 0 },
+  { id: "ana", name: "Ana", role: "Medical officer", base: "Lyra Base", ax: 1, ay: 0, tilt: 0.3 },
+  { id: "amara", name: "Amara", role: "Geologist", base: "Vega-2", ax: 2, ay: 0, tilt: 0 },
+  { id: "teodor", name: "Teodor", role: "Commander", base: "Orion-1", ax: 0, ay: 1, tilt: 1 },
+  { id: "elena", name: "Elena", role: "Navigator", base: "Halley-4", ax: 1, ay: 2, tilt: 0.7 },
+  { id: "elvira", name: "Elvira", role: "Commander", base: "Nova-5", ax: 0, ay: 3, tilt: 0.2 },
+];
+function demo(p, day) {
+  const r = rng(p.id), sess = [], act = [], flags = [];
+  for (let d = 1; d <= day; d += 3) {
+    const t = p.tilt * Math.min(1, d / 40);
+    const perclos = +(6 + t * 12 + (r() - 0.5) * 3).toFixed(1), index = Math.round(82 - t * 22 + (r() - 0.5) * 6), rt = Math.round(270 + t * 70 + (r() - 0.5) * 20);
+    const kss = Math.max(1, Math.min(9, Math.round(3 + t * 4 + (r() - 0.5) * 2)));
+    const level = perclos >= 15 && kss >= 7 ? "bad" : perclos >= 15 || kss >= 7 ? "warn" : "ok";
+    sess.push({ day: d, perclos, index, pvt: { meanRT: rt, lapses: Math.round(t * 5 + r() * 2) }, kss, level, validPct: Math.round(85 + r() * 12), framing: { out: Math.round(t * 2), suspensions: [] } });
+    act.push({ day: d, at: 0, kind: "assessment", text: `ASTRO-PSY finished · index ${index}`, lv: level === "bad" ? "warn" : level });
+  }
+  if (p.tilt >= 0.7) flags.push({ category: "distress", level: 2, day: Math.max(1, day - 2), source: "personal journal", consent: "you shared it", flaggedSegments: 1, of: 6 });
+  const scans = []; for (let d = Math.max(1, day - 6); d <= day; d++) if (r() > 0.3) scans.push({ day: d, at: 0, source: "personal journal", segs: 3 + Math.floor(r() * 8) });
+  return { sess, act, flags, scans, mood: [], pvt: [], bg: [], pvtBase: 280 };
+}
+function liveData(S) {
+  const pre = (S.pvt || []).filter((x) => x.pre);
+  return { pvtBase: pre.length ? pre.reduce((a, x) => a + x.ms, 0) / pre.length : 283, sess: S.psy || [], act: S.activity || [], flags: (S.guard && S.guard.sent) || [], scans: (S.guard && S.guard.scans) || [], mood: S.mood || [], pvt: (S.pvt || []).filter((x) => !x.pre), bg: (S.bgFatigue || []).slice(-60) };
+}
+let sel = "me", lastActAt = 0, firstRender = true;
+function chart(title, series, o = {}) {
+  const all = series.flatMap((s) => s.v).filter((v) => v != null && isFinite(v));
+  if (!all.length) return `<div class="box ch"><h2>${title}</h2><p class="empty">${o.empty || "No data yet."}</p></div>`;
+  const lo = Math.min(o.lo ?? Infinity, ...all), hi = Math.max(o.hi ?? -Infinity, ...all), span = hi - lo || 1;
+  const X = (i, n) => 34 + (n === 1 ? 0.5 : i / (n - 1)) * 556, Y = (v) => 128 - ((v - lo) / span) * 112;
+  let g = `<svg viewBox="0 0 600 150" preserveAspectRatio="none">`;
+  [0, 0.5, 1].forEach((k) => { const v = lo + span * k, y = Y(v); g += `<line class="grid" x1="34" x2="590" y1="${y}" y2="${y}"/><text class="ax" x="0" y="${y + 3}">${Math.round(v)}</text>`; });
+  if (o.thr != null) g += `<line class="thr" x1="34" x2="590" y1="${Y(o.thr)}" y2="${Y(o.thr)}"/>`;
+  series.forEach((s) => { const v = s.v.filter((x) => x != null && isFinite(x)), n = v.length; if (!n) return;
+    const pts = v.map((x, i) => [X(i, n), Y(x)]);
+    g += `<polygon class="area" fill="${s.c}" points="${pts[0][0]},128 ${pts.map((q) => q.join(",")).join(" ")} ${pts[n - 1][0]},128"/>`;
+    const lab = (s.l || []).filter((_, i) => s.v[i] != null && isFinite(s.v[i]));
+    g += `<polyline class="ln" stroke="${s.c}" points="${pts.map((q) => q.join(",")).join(" ")}"/>` + (n <= 60 ? pts.map((q, i) => `<circle class="pt" cx="${q[0]}" cy="${q[1]}" r="3.5" fill="${s.c}"><title>${esc(s.n)}: ${v[i]}${lab[i] ? " · " + esc(lab[i]) : ""}</title></circle>`).join("") : ""); });
+  g += `</svg>`;
+  return `<div class="box ch"><h2>${title}</h2>${g}<div class="legend">${series.map((s) => `<span><i style="background:${s.c}"></i>${s.n}</span>`).join("")}${o.thr != null ? `<span><i style="background:var(--amber)"></i>${o.thrN}</span>` : ""}</div></div>`;
+}
+const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`; };
+const hhmm = (t) => (t ? new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
+let frozen = false, pending = 0, lastSig = "", forceNext = true, lastBuilt = 0;
+function render() {
+  const S = read("nabu.en.v2", {}), day = S.day || 1, L = read("nabu.live", {}), online = L.at && Date.now() - L.at < 12000;
+  {
+    const d0 = sel === "me" ? liveData(S) : null;
+    const sig = sel + "|" + day + "|" + (d0 ? [d0.sess.length, d0.act.length, d0.flags.length, d0.bg.length, d0.mood.length, d0.pvt.length, d0.scans.length].join(",") : "demo") + "|" + Object.keys(read("bhc.reviewed", {})).length + "|" + read("bhc.history", []).length + "|" + histF.range + histF.type + "|" + (online ? 1 : 0);
+    if (!forceNext && sig === lastSig) { stamp(); return; }                 // nothing new: leave the page alone
+    if (!forceNext && frozen) { if (sig !== lastSig) { pending++; lastSig = sig; paintFreeze(); } return; }
+    lastSig = sig; forceNext = false; pending = 0; paintFreeze();
+  }
+  const keep = {}; [".tl", ".feed", ".hist"].forEach((q) => { const el = document.querySelector(q); if (el) keep[q] = el.scrollTop; });
+  const openDays = new Set([...document.querySelectorAll(".hday[open]")].map((x) => x.dataset.day));
+  $("#h-day").textContent = day; $("#h-delay").textContent = (4 + 16 * (0.5 - 0.5 * Math.cos((day / 180) * Math.PI))).toFixed(1) + " min";
+  const D = Object.fromEntries(CREW.map((p) => [p.id, p.live ? liveData(S) : demo(p, day)]));
+  let h = "", bases = [];
+  CREW.forEach((p) => { const d = D[p.id], last = d.sess.slice(-1)[0], urgent = d.flags.some((f) => f.level >= 3 && f.day >= day - 3) || d.act.some((a) => a.lv === "bad" && a.day >= day - 1);
+    const lv = urgent ? "bad" : last ? (last.level === "info" ? "ok" : last.level) : (d.act.length ? "ok" : "info");
+    if (!bases.includes(p.base)) { bases.push(p.base); h += `<div class="base-h">${esc(p.base)}</div>`; }
+    h += `<button class="cm ${p.id === sel ? "on" : ""}" data-id="${p.id}"><span class="av" style="--ax:${p.ax};--ay:${p.ay}"></span><span><b>${esc(p.name)}</b><small>${esc(p.role)}${last ? ` · day ${last.day}` : ""}</small></span>${p.live && online ? `<span class="live">live</span>` : ""}<i class="sd ${lv}"></i></button>`; });
+  $("#crew").innerHTML = h; $("#n-crew").textContent = CREW.length;
+  document.querySelectorAll(".cm").forEach((b) => (b.onclick = () => { sel = b.dataset.id; forceNext = true; render(); }));
+  const al = [];
+  CREW.forEach((p) => { const d = D[p.id];
+    d.flags.forEach((f) => al.push({ day: f.day, t: 0, lv: f.level >= 3 ? "bad" : "warn", who: p.name, title: `${CAT[f.category] || f.category} · level ${f.level}`, body: `${SRC[f.source] || f.source || "Journal"} · ${CONSENT[f.consent] || f.consent || ""} · text not included` }));
+    d.act.filter((a) => a.kind === "checkin" || a.lv === "bad").forEach((a) => al.push({ day: a.day, t: a.at, lv: a.lv, who: p.name, title: KIND[a.kind] || "Event", body: a.text }));
+    d.sess.forEach((s) => (s.framing?.suspensions || []).forEach((x) => al.push({ day: s.day, t: 0, lv: x.teamNotified ? "bad" : "warn", who: p.name, title: "“Are you OK?” during a test", body: x.teamNotified ? "No answer in time; crew alerted." : `Answered after ${(x.rtMs / 1000).toFixed(1)} s.` }))); });
+  al.sort((a, b) => b.day - a.day || b.t - a.t);
+  $("#feed").innerHTML = al.length ? al.slice(0, 40).map((a) => `<div class="al ${a.lv} ${a.t && a.t > lastActAt && !firstRender ? "new" : ""}"><b>${esc(a.who)} · ${esc(a.title)}</b><p>${esc(a.body)}</p><small>mission day ${a.day}${a.t ? " · " + hhmm(a.t) : ""}</small></div>`).join("") : `<p class="empty">No alerts. Quiet skies.</p>`;
+  $("#n-al").textContent = al.length;
+  const p = CREW.find((x) => x.id === sel), d = D[sel], last = d.sess.slice(-1)[0];
+  const urgent = d.act.some((a) => a.lv === "bad" && a.day >= day - 1) || d.flags.some((f) => f.level >= 3 && f.day >= day - 3);
+  const lv = urgent ? "bad" : last ? (last.level === "info" ? "ok" : last.level) : (d.act.length ? "ok" : "info");
+  const base3 = d.sess.length > 3 ? d.sess.slice(0, 3).filter((s) => s.perclos != null) : [];
+  const baseP = base3.length ? (base3.reduce((a, s) => a + s.perclos, 0) / base3.length).toFixed(1) : null;
+  const bgLast = d.bg.slice(-1)[0], moodLast = d.mood.slice(-1)[0], pvtLast = d.pvt.slice(-1)[0];
+  const kp = (v, u, label, sub, cls = "") => `<div class="kpi ${cls}"><b>${v ?? "–"}${v != null && u ? `<small>${u}</small>` : ""}</b><span>${label}</span><em>${sub || ""}</em></div>`;
+  const acts = d.act.slice().reverse().slice(0, 40), newest = d.act.length ? d.act[d.act.length - 1].at : 0;
+  const fNow = bgLast ? bgLast.perclos : last ? last.perclos : null;
+  const stressV = moodLast ? moodLast.stress : last ? last.kss : null;
+  $("#main").innerHTML = (p.live ? `<div class="box livebox" id="livebox"></div>` : "") + `
+    <div class="box herobox ${lv}"><div class="hero"><span class="av" style="--ax:${p.ax};--ay:${p.ay}"></span>
+      <div><h1>${esc(p.name)}</h1><p>${esc(p.role)} · ${esc(p.base)} · ${d.sess.length} assessment${d.sess.length === 1 ? "" : "s"}${p.live ? "" : " · demo data"}</p>
+      ${p.live ? `<div class="now"><i class="pdot ${online ? "on" : ""}"></i>${online ? `Online now · ${esc(L.panel || L.where || "Nabu")}${L.camera ? " · fatigue camera on" : " · camera off"}` : L.at ? `Last seen ${ago(L.at)}` : "Not signed in yet"}</div>` : ""}</div>
+      <div class="status"><span>${LEVEL[lv]}</span><small>${urgent ? "recent alert" : last ? "last assessment day " + last.day : ""}</small></div></div></div>
+    <div class="kpis">
+      ${kp(last ? last.index : null, "/100", "ASTRO-PSY index", last && last.verdict ? esc(VERD[last.verdict] || last.verdict) : last ? "day " + last.day : "no assessment yet")}
+      ${kp(fNow, "%", bgLast ? "Fatigue now (camera)" : "Fatigue in test (PERCLOS)", bgLast ? `${hhmm(Date.parse(bgLast.at))} · 5-min reading` : baseP ? `baseline ${baseP}%` : "baseline after 3 sessions", fNow >= 15 ? "warn" : "")}
+      ${kp(pvtLast ? pvtLast.ms : last && last.pvt ? last.pvt.meanRT : null, "ms", "Reaction time", pvtLast ? `quick test · day ${pvtLast.day}` : last && last.pvt ? `${last.pvt.lapses} lapses` : "")}
+      ${kp(stressV, moodLast ? "/10" : "/9", moodLast ? "Stress (check-in)" : "Sleepiness (KSS)", moodLast ? `sleep ${moodLast.sleep} h · energy ${moodLast.energy}/10` : "", stressV >= 7 ? "warn" : "")}
+      ${kp(d.act.filter((a) => a.day === day).length, "", "Activities today", d.act.length ? `last ${hhmm(newest) || "day " + d.act[d.act.length - 1].day}` : "")}
+    </div>
+    ${readingBox(p, d, day, L, online)}
+    ${guardianBox(p, d, day)}
+    <div class="charts">
+      ${p.live ? `<div id="minchart">${minuteChart()}</div>` : ""}
+      ${chart("Fatigue · camera (PERCLOS)", [{ n: "all day, every 5 min", c: "#ff9a6b", v: d.bg.map((x) => x.perclos), l: d.bg.map((x) => "day " + x.day + " " + hhmm(Date.parse(x.at))) }, { n: "during assessments", c: "#3fc7b5", v: d.sess.map((s) => s.perclos), l: d.sess.map((s) => "day " + s.day) }], { lo: 0, hi: 20, thr: 15, thrN: "fatigue ≥ 15%", empty: "The first camera reading arrives 5 minutes after the astronaut opens Nabu." })}
+      ${chart("Reaction time", [{ n: "quick tests, ms", c: "#7fb2ff", v: d.pvt.map((x) => x.ms), l: d.pvt.map((x) => "day " + x.day) }, { n: "ASTRO-PSY PVT, ms", c: "#c49bf0", v: d.sess.map((s) => (s.pvt ? s.pvt.meanRT : null)), l: d.sess.map((s) => "day " + s.day) }], { lo: 220, hi: 380 })}
+      ${chart("ASTRO-PSY index", [{ n: "index /100", c: "#c49bf0", v: d.sess.map((s) => s.index), l: d.sess.map((s) => "day " + s.day) }], { lo: 50, hi: 100 })}
+      ${chart("How they feel", [{ n: "stress /10", c: "#ff7a7a", v: d.mood.map((m) => m.stress), l: d.mood.map((m) => "day " + m.day) }, { n: "sleep h", c: "#3fc7b5", v: d.mood.map((m) => m.sleep), l: d.mood.map((m) => "day " + m.day) }, { n: "KSS (tests)", c: "#f2c14e", v: d.sess.map((s) => s.kss), l: d.sess.map((s) => "day " + s.day) }], { lo: 0, hi: 10 })}
+    </div>
+    <div class="box"><h2>Activity <em>${p.live ? "live from Nabu" : "demo"}</em></h2>${acts.length ? `<div class="tl">${acts.map((a) => `<div class="ti ${a.lv} ${a.at && a.at > lastActAt && !firstRender ? "new" : ""}"><time>${a.at ? hhmm(a.at) : "day " + a.day}</time><i></i><span>${esc(a.text)}<small>${KIND[a.kind] || a.kind} · day ${a.day}</small></span></div>`).join("")}</div>` : `<p class="empty">${p.live ? "Nothing yet. Tests, check-ins, workouts and assessments from the Commander appear here as they happen." : "No activity."}</p>`}</div>
+    ${historyBox(p, d, day)}
+    <div class="box"><h2>Assessments</h2>${d.sess.length ? `<table><thead><tr><th>Day</th><th>Status</th><th>Index</th><th>PERCLOS</th><th>PVT</th><th>KSS</th><th>Camera</th></tr></thead><tbody>
+      ${d.sess.slice().reverse().slice(0, 12).map((s) => `<tr><td class="n">${s.day}</td><td><span class="tag ${s.level || "info"}">${LEVEL[s.level || "info"]}</span></td><td class="n">${s.index ?? "–"}</td><td class="n">${s.perclos != null ? s.perclos + "%" : "–"}</td><td class="n">${s.pvt ? s.pvt.meanRT + " ms" : "–"}</td><td class="n">${s.kss ?? "–"}</td><td class="n">${s.validPct ?? "–"}%${s.simulated ? " · sim" : ""}</td></tr>`).join("")}</tbody></table>` : `<p class="empty">No assessment yet. When ${esc(p.name)} finishes ASTRO-PSY, it appears here.</p>`}</div>`;
+  const next = 14 - ((day - 1) % 14), inbox = read("nabu.inbox", []).filter((m) => m.to === sel), replies = read("nabu.inbox.replies", []);
+  const sig = sel + ":" + inbox.length + ":" + replies.length;
+  if ($("#ppc").dataset.sig !== sig) {
+    const draft = $("#msg") ? $("#msg").value : "";
+    $("#ppc").dataset.sig = sig;
+    $("#ppc").innerHTML = `<h2>Private conference <em>every 2 weeks</em></h2><div class="big">${next} <small>days to the next one · not recorded</small></div>
+      <textarea id="msg" placeholder="A short note for ${esc(p.name)}…" style="margin:12px 0 8px"></textarea>
+      <div class="row"><button class="btn vi" data-a="note">Send note</button><button class="btn pri" data-a="call">Request a call now</button></div>
+      ${inbox.length ? `<div class="sent">${inbox.slice().reverse().slice(0, 5).map((m) => { const r = replies.find((x) => x.id === m.id); return `<div><span>${m.kind === "call" ? "Call request" : "“" + esc(m.text.slice(0, 48)) + (m.text.length > 48 ? "…" : "") + "”"}</span><em class="${r ? (r.reply === "later" ? "later" : "ok") : ""}">${r ? (r.reply === "accepted" ? "accepted ✓" : r.reply === "later" ? "later today" : "read ✓") : "delivered"}</em></div>`; }).join("")}</div>` : ""}
+      ${p.live ? "" : `<p class="empty">Demo crew member: messages are not delivered.</p>`}`;
+    $("#msg").value = draft;
+    document.querySelectorAll("#ppc [data-a]").forEach((b) => (b.onclick = () => {
+      const kind = b.dataset.a, text = kind === "call" ? "I'd like to talk for 15 minutes when you have a quiet moment. Nothing urgent, just checking in." : $("#msg").value.trim();
+      if (kind === "note" && !text) { $("#msg").focus(); return; }
+      const all = read("nabu.inbox", []); all.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: sel, kind, text, at: Date.now() }); write("nabu.inbox", all.slice(-100));
+      $("#msg").value = ""; toast(sel === "me" ? (kind === "call" ? "Call request sent. The Commander sees it in Nabu." : "Note sent. The Commander sees it in Nabu.") : "Demo crew member: not delivered."); render();
+    }));
+  }
+  liveUpdate(); bindGuardian(); bindReading(p, d, day); bindHistory();
+  Object.entries(keep).forEach(([q, v]) => { const el = document.querySelector(q); if (el) el.scrollTop = v; });
+  document.querySelectorAll(".hday").forEach((x) => { if (openDays.has(x.dataset.day)) x.open = true; });
+  lastBuilt = Date.now(); stamp();
+  // a new Guardian flag from the Commander: say it loudly
+  const myFlags = D.me.flags, newestFlag = myFlags.reduce((m, f) => Math.max(m, f.at || 0), 0);
+  if (!firstRender && newestFlag > lastFlagAt) { const f = myFlags.find((x) => x.at === newestFlag);
+    toast(`Guardian · ${CAT[f.category] || f.category} · level ${f.level}`);
+    if (f.level >= 3) { $("#sos").innerHTML = `<b>Guardian level 3 · ${esc(CAT[f.category] || f.category)}</b><p>From the Commander's ${esc(SRC[f.source] || f.source || "journal")}. ${esc((RESP[f.category] || RESP.distress)[0])}</p><div class="row"><button class="btn pri" id="sos-call">Call now</button><button class="btn" id="sos-ok">Seen</button></div>`;
+      $("#sos").classList.add("on"); $("#sos-ok").onclick = () => $("#sos").classList.remove("on"); $("#sos-call").onclick = () => { $("#sos").classList.remove("on"); document.querySelector("[data-callnow]")?.click(); };
+      try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 660; g.gain.value = 0.08; o.connect(g); g.connect(a.destination); o.start(); setTimeout(() => o.stop(), 600); } catch {} }
+    if (sel === "me") setTimeout(() => $("#gdbox")?.scrollIntoView({ behavior: "smooth", block: "center" }), 200); }
+  lastFlagAt = Math.max(lastFlagAt, newestFlag);
+  const k = "bhc.notes." + sel; if (document.activeElement !== $("#notes")) $("#notes").value = localStorage.getItem(k) || ""; $("#notes").oninput = (e) => localStorage.setItem(k, e.target.value);
+  const myAct = D.me.act, newestAt = myAct.length ? myAct[myAct.length - 1].at : 0;
+  if (!firstRender && newestAt > lastActAt) { const a = myAct[myAct.length - 1]; toast(`Commander · ${a.text}`); document.querySelectorAll(".kpi").forEach((x) => { x.classList.remove("flash"); void x.offsetWidth; x.classList.add("flash"); }); }
+  lastActAt = Math.max(lastActAt, newestAt); firstRender = false;
+}
+/* Journal · Guardian: the on-device screen of the astronaut's journals. The console only ever receives a category,
+   a level, the source, how many segments were flagged, and how the flag was shared. Never a word of the text. */
+const RESP = {
+  self: ["Call within the light delay. Involve the medical officer. Do not leave them alone on shift.", "Bring it up gently at a call this week. Check sleep and isolation."],
+  others: ["Call now and speak with the commander of the base. Separate shifts if needed.", "Raise it at the next private conference. Watch crew dynamics."],
+  ship: ["Alert the base commander and mission control now. Call the astronaut.", "Check workload and stress at the next call."],
+  medical: ["The medical officer has been alerted on board. Follow up with the flight surgeon.", "Follow up with the medical officer."],
+  distress: ["Call within the day.", "Bring it up at the next private conference. A supportive note can help now."],
+};
+const CONSENT = { "pre-flight agreement (level 3)": "Sent automatically · agreed before flight", "you shared it": "Shared by the astronaut", "C-SSRS screen agreed before flight": "Sent automatically · C-SSRS screen" };
+const SRC = { "personal journal": "Personal journal", "community chapter": "Community journal chapter", "ASTRO-PSY · C-SSRS screen": "ASTRO-PSY questionnaire (C-SSRS)" };
+function guardianBox(p, d, day) {
+  const flags = (d.flags || []).slice().sort((a, b) => b.day - a.day || (b.at || 0) - (a.at || 0)), scans = d.scans || [];
+  const today = scans.filter((x) => x.day === day).length, week = scans.filter((x) => x.day > day - 7).length;
+  const top = flags.filter((f) => f.day >= day - 3).reduce((m, f) => Math.max(m, f.level), 0);
+  const cls = top >= 3 ? "bad" : top === 2 ? "warn" : "ok";
+  const reviewed = read("bhc.reviewed", {});
+  const days = []; for (let k = 13; k >= 0; k--) { const dd = day - k; days.push({ n: scans.filter((x) => x.day === dd).length, fl: flags.some((f) => f.day === dd) }); }
+  const maxN = Math.max(1, ...days.map((x) => x.n));
+  return `<div class="box gd ${cls}" id="gdbox">
+    <div class="gd-top"><span class="gd-shield">G</span><div><b>Journal screening · Guardian</b><small>Reads ${esc(p.name)}'s journal pages on the tablet for danger only. You receive category and level, never the words.</small></div>
+      <span class="gd-chip ${cls} ${top >= 3 ? "l3" : ""}">${top >= 3 ? "Level 3 · act now" : top === 2 ? "Level 2 · follow up" : "No flags"}</span></div>
+    <div class="gd-stats"><div><b>${today}</b><span>pages checked today</span></div><div><b>${week}</b><span>this week</span></div><div><b>${flags.length}</b><span>flags received</span></div>
+      <div><b>${scans.length && scans[scans.length - 1].at ? hhmm(scans[scans.length - 1].at) : scans.length ? "day " + scans[scans.length - 1].day : "–"}</b><span>last check</span></div></div>
+    <div class="gd-scan" title="Pages checked per day, last 14 days (red: a flag that day)">${days.map((x) => `<i class="${x.fl ? "fl" : ""}" style="height:${x.n ? 20 + (x.n / maxN) * 80 : 6}%"></i>`).join("")}</div>
+    ${flags.length ? `<div class="gd-list">${flags.slice(0, 8).map((f, i) => { const c = f.level >= 3 ? "bad" : f.level === 2 ? "warn" : "info", key = (p.id + ":" + (f.at || f.day) + ":" + f.category), seg = Math.max(1, f.of || 1);
+      return `<div class="gf ${c} ${i === 0 && f.at && f.at > lastFlagAt && !firstRender ? "new" : ""}"><span class="gf-lv">${f.level}</span>
+        <div><b>${esc(CAT[f.category] || f.category)}</b><p>${esc((RESP[f.category] || RESP.distress)[f.level >= 3 ? 0 : 1])}</p>
+          <div class="meta"><span>${esc(SRC[f.source] || f.source || "journal")}</span><span>day ${f.day}${f.at ? " · " + hhmm(f.at) : ""}</span><span>${esc(CONSENT[f.consent] || f.consent || "")}</span><span class="lock">Text not included</span></div>
+          ${f.of ? `<div class="gf-segs" title="${f.flaggedSegments || 1} of ${f.of} segments flagged">${Array.from({ length: Math.min(seg, 24) }, (_, k) => `<i class="${k < (f.flaggedSegments || 1) ? "fl" : ""}"></i>`).join("")}</div>` : ""}</div>
+        <div class="gf-act">${reviewed[key] ? `<em>reviewed ✓</em>` : `<button class="btn" data-rev="${esc(key)}">Mark reviewed</button>`}${p.live ? `<button class="btn pri" data-callnow="1">Call now</button>` : ""}</div></div>`; }).join("")}</div>`
+      : `<p class="empty">No flags. ${scans.length ? `Guardian checked ${scans.length} page${scans.length === 1 ? "" : "s"} and found nothing that needs you.` : "No journal page has been checked yet."}</p>`}
+    <p class="gd-foot">Levels: 1 stays private with the astronaut · 2 sent only if they choose · 3 sent automatically (agreed before flight). Checks are counted, contents never leave the tablet.</p>
+  </div>`;
+}
+function bindGuardian() {
+  document.querySelectorAll("[data-rev]").forEach((b) => (b.onclick = () => { const r = read("bhc.reviewed", {}); r[b.dataset.rev] = Date.now(); write("bhc.reviewed", r); render(); }));
+  document.querySelectorAll("[data-callnow]").forEach((b) => (b.onclick = () => { const all = read("nabu.inbox", []); all.push({ id: Date.now().toString(36), to: "me", kind: "call", text: "I'd like to talk now, for a few minutes. Can you find a quiet spot?", at: Date.now() }); write("nabu.inbox", all.slice(-100)); toast("Call request sent to the Commander."); render(); }));
+}
+let lastFlagAt = 0;
+/* ── pause: the console freezes while the psychologist reads; new data waits and is counted ── */
+function paintFreeze() {
+  const b = $("#freeze"); if (!b) return;
+  b.classList.toggle("paused", frozen);
+  b.innerHTML = frozen ? `<i></i><span>Paused</span>${pending ? `<b>${pending} new</b>` : ""}<span style="opacity:.7">· resume</span>` : `<i></i><span>Live</span><span class="updated" id="stamp"></span>`;
+}
+function stamp() { const s = $("#stamp"); if (s && lastBuilt) s.textContent = "· updated " + ago(lastBuilt); }
+/* ── live minute-by-minute fatigue, sampled from the heartbeat and kept as history ── */
+let lm = { sec: -1, val: null };
+function sampleMinute(e) {
+  if (!e) return;
+  if (lm.sec >= 0 && e.minuteSec + 5 < lm.sec && lm.val != null) { const h = read("bhc.minutes", []); h.push({ t: Date.now(), v: lm.val }); write("bhc.minutes", h.slice(-480)); }
+  lm = { sec: e.minuteSec, val: e.minutePerclos };
+}
+function minuteChart() {
+  const h = read("bhc.minutes", []).slice(-30), v = h.map((x) => x.v), l = h.map((x) => hhmm(x.t));
+  if (lm.val != null) { v.push(lm.val); l.push("this minute (so far)"); }
+  return chart("Fatigue · minute by minute (live)", [{ n: "PERCLOS per minute", c: "#ff9a6b", v, l }], { lo: 0, hi: 20, thr: 15, thrN: "fatigue ≥ 15%", empty: "Live camera data appears here minute by minute while the Commander has Nabu open." });
+}
+/* ── the reading: what the numbers mean right now, in plain words ── */
+function readingBox(p, d, day, L, online) {
+  const rows = [], add = (lv, k, text, sub) => rows.push({ lv, k, text, sub });
+  const mins = p.live ? read("bhc.minutes", []).slice(-10) : [];
+  const recentP = mins.length ? mins.reduce((a, x) => a + x.v, 0) / mins.length : d.bg.length ? d.bg.slice(-3).reduce((a, x) => a + x.perclos, 0) / Math.min(3, d.bg.length) : (d.sess.slice(-1)[0] || {}).perclos;
+  if (recentP != null) add(recentP >= 15 ? "bad" : recentP >= 8 ? "warn" : "ok", "Fatigue", recentP >= 15 ? `Eyes slowly closed ${recentP.toFixed(1)}% of the time: a clear sign of fatigue.` : recentP >= 8 ? `Eyes slowly closed ${recentP.toFixed(1)}% of the time: mildly tired.` : `Eyes slowly closed ${recentP.toFixed(1)}% of the time: alert.`, mins.length ? `average of the last ${mins.length} live minute${mins.length === 1 ? "" : "s"}` : "latest camera reading");
+  else add("info", "Fatigue", "No camera reading yet.", "it starts when the Commander opens Nabu");
+  const rt = d.pvt.slice(-1)[0] || (d.sess.slice(-1)[0] && d.sess.slice(-1)[0].pvt ? { ms: d.sess.slice(-1)[0].pvt.meanRT, day: d.sess.slice(-1)[0].day } : null);
+  if (rt) { const ch = ((rt.ms - d.pvtBase) / d.pvtBase) * 100; add(ch > 12 ? "warn" : "ok", "Reaction", `${rt.ms} ms, ${ch >= 0 ? ch.toFixed(0) + "% slower" : (-ch).toFixed(0) + "% faster"} than the pre-flight baseline (${Math.round(d.pvtBase)} ms).`, `day ${rt.day} · above 12% slower is meaningful`); }
+  const m = d.mood.slice(-1)[0];
+  if (m) add(m.stress >= 7 || m.sleep < 6 ? "warn" : "ok", "Mood", `Stress ${m.stress}/10, sleep ${m.sleep} h, energy ${m.energy}/10.`, `self-reported · day ${m.day}`);
+  const s1 = d.sess.slice(-1)[0], s0 = d.sess.slice(-2, -1)[0];
+  if (s1) add(s1.level === "bad" ? "bad" : s1.level === "warn" ? "warn" : "ok", "Assessment", `ASTRO-PSY index ${s1.index ?? "–"}${s0 && s1.index != null && s0.index != null ? ` (${s1.index - s0.index >= 0 ? "+" : ""}${(s1.index - s0.index).toFixed(1)} since day ${s0.day})` : ""}${s1.verdict ? ", " + (VERD[s1.verdict] || s1.verdict) : ""}.`, `day ${s1.day}`);
+  const fl = d.flags.filter((f) => f.day >= day - 3);
+  if (fl.length) { const top = Math.max(...fl.map((f) => f.level)); add(top >= 3 ? "bad" : "warn", "Guardian", `${fl.length} journal flag${fl.length === 1 ? "" : "s"} in the last 3 days, highest level ${top} (${fl.map((f) => CAT[f.category] || f.category).join(", ")}).`, "category and level only"); }
+  const ci = d.act.filter((a) => a.kind === "checkin" && a.day >= day - 1);
+  if (ci.length) add(ci.some((a) => a.lv === "bad") ? "bad" : "warn", "Check-ins", `${ci.length} “Are you OK?” check-in${ci.length === 1 ? "" : "s"} since yesterday${ci.some((a) => a.lv === "bad") ? ", one without an answer in time" : ""}.`, "eyes left the camera view");
+  const today = d.act.filter((a) => a.day === day).length;
+  if (p.live) add(today ? "ok" : "info", "Engagement", today ? `${today} activit${today === 1 ? "y" : "ies"} today${online ? ", online now" : ""}.` : "Nothing logged today yet.", online ? esc(L.panel || L.where || "Nabu") : L.at ? "last seen " + ago(L.at) : "");
+  const worst = rows.some((r) => r.lv === "bad") ? "bad" : rows.filter((r) => r.lv === "warn").length >= 2 ? "warn" : rows.some((r) => r.lv === "warn") ? "warn" : "ok";
+  const sum = { ok: ["Steady", "Nothing needs action. Keep the regular private conference."], warn: ["Worth a check-in", "Send a supportive note today and ask about sleep and workload at the next call."], bad: ["Act now", "Call within the light delay; if it is medical, the medical officer on board leads."] }[worst];
+  return `<div class="box reading ${worst}" id="reading"><h2>Clinical summary <em class="updated">interpreted ${hhmm(Date.now())} · data to ${d.act.length && d.act[d.act.length - 1].at ? hhmm(d.act[d.act.length - 1].at) : "now"}</em></h2>
+    <div class="rd">${rows.map((r) => `<div class="rd-row ${r.lv}"><b>${r.k}</b><span>${esc(r.text)}<small>${esc(r.sub || "")}</small></span></div>`).join("")}</div>
+    <div class="rd-sum ${worst}"><b>${sum[0]}</b>${sum[1]}</div>
+    <div class="rd-foot"><span class="updated">Automatic reading of the numbers above. It suggests, you decide.</span><button class="btn" id="rd-save">Save this reading to history</button></div></div>`;
+}
+function bindReading(p, d, day) {
+  const b = $("#rd-save"); if (!b) return;
+  b.onclick = () => { const rows = [...document.querySelectorAll("#reading .rd-row")].map((r) => r.querySelector("b").textContent + ": " + r.querySelector("span").firstChild.textContent);
+    const h = read("bhc.history", []); h.push({ who: sel, day, at: Date.now(), kind: "reading", text: rows.join(" · "), sum: $("#reading .rd-sum b").textContent }); write("bhc.history", h.slice(-500));
+    toast("Reading saved to the history."); forceNext = true; render(); };
+}
+/* ── history: every day of the mission, newest first, with filters ── */
+const histF = { range: "7", type: "all" };
+const HTYPE = { all: "All", assessment: "Assessments", fatigue: "Fatigue", mood: "Mood & tests", flag: "Guardian", checkin: "Check-ins", note: "Your notes" };
+function historyBox(p, d, day) {
+  const notes = read("bhc.history", []).filter((x) => x.who === sel), byDay = {};
+  const put = (dd, e) => (byDay[dd] ||= []).push(e);
+  d.act.forEach((a) => put(a.day, { t: a.at, lv: a.lv, type: a.kind === "assessment" ? "assessment" : a.kind === "flag" ? "flag" : a.kind === "checkin" ? "checkin" : a.kind === "mood" || a.kind === "test" ? "mood" : "other", text: a.text }));
+  if (!p.live) d.sess.forEach((x) => 0);
+  d.bg.forEach((x) => put(x.day, { t: Date.parse(x.at), lv: x.perclos >= 15 ? "warn" : "ok", type: "fatigue", text: `Camera · PERCLOS ${x.perclos}% (5 min)`, pv: x.perclos }));
+  notes.forEach((n) => put(n.day, { t: n.at, lv: "info", type: "note", text: n.text, note: n }));
+  const days = Object.keys(byDay).map(Number).sort((a, b) => b - a).filter((x) => histF.range === "all" || x > day - Number(histF.range));
+  const chips = `<div class="hchips">${[["1", "Today"], ["7", "7 days"], ["30", "30 days"], ["all", "All"]].map(([k, n]) => `<button data-hr="${k}" class="${histF.range === k ? "on" : ""}">${n}</button>`).join("")}<span style="width:10px"></span>${Object.entries(HTYPE).map(([k, n]) => `<button data-ht="${k}" class="${histF.type === k ? "on" : ""}">${n}</button>`).join("")}</div>`;
+  const body = days.length ? days.map((dd) => {
+    const ev = byDay[dd].filter((e) => histF.type === "all" || e.type === histF.type).sort((a, b) => (b.t || 0) - (a.t || 0)); if (!ev.length) return "";
+    const pv = byDay[dd].filter((e) => e.pv != null), avgP = pv.length ? (pv.reduce((a, e) => a + e.pv, 0) / pv.length).toFixed(1) : null;
+    const nf = byDay[dd].filter((e) => e.type === "flag").length, nc = byDay[dd].filter((e) => e.type === "checkin").length, na = byDay[dd].filter((e) => e.type === "assessment").length, nn = byDay[dd].filter((e) => e.type === "note").length;
+    return `<details class="hday" data-day="${dd}" ${dd === day ? "open" : ""}><summary><b>Day ${dd}</b><span class="sm"><span>${byDay[dd].length} events</span>${avgP ? `<span class="${avgP >= 15 ? "w" : ""}">PERCLOS ${avgP}%</span>` : ""}${na ? `<span>${na} assessment${na === 1 ? "" : "s"}</span>` : ""}${nf ? `<span class="r">${nf} flag${nf === 1 ? "" : "s"}</span>` : ""}${nc ? `<span class="w">${nc} check-in${nc === 1 ? "" : "s"}</span>` : ""}${nn ? `<span>${nn} note${nn === 1 ? "" : "s"}</span>` : ""}</span><em>›</em></summary>
+      <div class="ev">${ev.map((e) => e.type === "note" ? `<div class="hnote"><small>${hhmm(e.t)} · ${e.note.kind === "reading" ? "saved reading · " + esc(e.note.sum || "") : "your note"}</small>${esc(e.text)}</div>` : `<div class="ti ${e.lv}"><time>${e.t ? hhmm(e.t) : "–"}</time><i></i><span>${esc(e.text)}<small>${HTYPE[e.type] || "Activity"}</small></span></div>`).join("")}</div></details>`;
+  }).join("") : "";
+  return `<div class="box"><h2>History <em>${p.live ? "everything since day 1" : "demo"}</em></h2>${chips}<div class="hist">${body || `<p class="empty">Nothing in this range yet.</p>`}</div></div>`;
+}
+function bindHistory() {
+  document.querySelectorAll("[data-hr]").forEach((b) => (b.onclick = () => { histF.range = b.dataset.hr; forceNext = true; render(); }));
+  document.querySelectorAll("[data-ht]").forEach((b) => (b.onclick = () => { histF.type = b.dataset.ht; forceNext = true; render(); }));
+}
+// the live strip: what the camera measures right now (updated every 1.5 s, without redrawing the page)
+function liveUpdate(hb) {
+  const L = hb || read("nabu.live", {}), online = L.at && Date.now() - L.at < 8000;
+  $("#presence").innerHTML = `<i class="pdot ${online ? "on" : ""}"></i><span class="av" style="--ax:2;--ay:3"></span><span><b>Commander</b><small>${online ? `online · ${esc(L.panel || L.where || "Nabu")}${L.camera ? " · camera on" : ""}` : "offline"}</small></span>`;
+  const box = $("#livebox"); if (!box) return;
+  if (!online) {
+    box.className = "box livebox off";
+    box.innerHTML = `<div><div class="lv-tag" style="color:var(--muted)"><i class="pdot"></i>Not connected</div><p class="empty" style="margin:6px 0 0">The Commander's Nabu isn't open. Open it in another tab or window, side by side with this console: everything the astronaut does appears here as it happens.</p></div>
+      <button class="btn pri" id="open-astro">Open Nabu as astronaut ↗</button>`;
+    $("#open-astro").onclick = () => window.open("index.html?as=astronaut", "nabu-astro", "width=1280,height=860");
+    return;
+  }
+  const e = L.eyes, open = e ? Math.max(0, 1 - (e.closure || 0)) : 1;
+  sampleMinute(e); if (!frozen && $("#minchart")) $("#minchart").innerHTML = minuteChart();
+  box.className = "box livebox";
+  if (!box.querySelector(".eye")) box.innerHTML = `<div class="eye"><svg viewBox="0 0 92 54"><defs><radialGradient id="iris"><stop offset="0" stop-color="#0b1a18"/><stop offset=".35" stop-color="#1f6f66"/><stop offset=".55" stop-color="#3fc7b5"/><stop offset="1" stop-color="#e9f7f4"/></radialGradient>
+      <clipPath id="eyeclip"><path d="M4 27 Q46 -6 88 27 Q46 60 4 27Z"/></clipPath></defs><g clip-path="url(#eyeclip)"><rect width="92" height="54" fill="#e9f7f4"/><circle class="ball" cx="46" cy="27" r="16"/><rect class="lid" x="0" y="-2" width="92" height="56"/></g><path class="rim" d="M4 27 Q46 -6 88 27 Q46 60 4 27Z"/></svg></div>
+    <div class="lv-stats"><div><b id="lv-face">–</b><span>face in view</span></div><div><b id="lv-per">–</b><span>PERCLOS this minute</span></div><div><b id="lv-slow">–</b><span>slow closures this minute</span></div><div><b id="lv-blk">–</b><span>blinks this minute</span></div><div class="lv-bar"><i id="lv-min"></i></div></div>
+    <div class="lv-tag"><i class="pdot on"></i>Live · ${esc(L.where || "Nabu")}</div>`;
+  box.querySelector(".lv-tag").innerHTML = `<i class="pdot on"></i>Live · ${esc(L.panel || L.where || "Nabu")}`;
+  box.querySelector(".lid").style.transform = `scaleY(${e && e.face ? (1 - open).toFixed(2) : 1})`;
+  $("#lv-face").textContent = !L.camera ? "camera off" : e && e.face ? "yes" : "no";
+  $("#lv-per").textContent = e && e.minutePerclos != null ? e.minutePerclos + "%" : "–";
+  $("#lv-per").style.color = e && e.minutePerclos >= 15 ? "var(--amber)" : "";
+  $("#lv-slow").textContent = e ? e.slowThisMinute : "–"; $("#lv-blk").textContent = e ? e.blinksThisMinute : "–";
+  $("#lv-min").style.width = e ? Math.min(100, (e.minuteSec / 60) * 100) + "%" : "0%";
+}
+function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 3600); }
+function sos(msg) {
+  if (!msg || msg.kind !== "incap") { $("#sos").classList.remove("on"); return; }
+  $("#sos").innerHTML = `<b>${esc(msg.from || "Commander")} is not answering “Are you OK?”</b><p>No answer within 15 seconds · ${hhmm(msg.t)}</p><div class="row"><button class="btn pri" id="sos-ack">Acknowledge · alert the medical officer</button></div>`;
+  $("#sos").classList.add("on"); $("#sos-ack").onclick = () => { $("#sos").classList.remove("on"); toast("Ana (medical officer) has been alerted."); };
+  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 740; g.gain.value = 0.08; o.connect(g); g.connect(a.destination); o.start(); setTimeout(() => o.stop(), 500); } catch {}
+}
+render();
+const lastSos = read("nabu.crew.msg", null); if (lastSos && lastSos.kind === "incap" && Date.now() - lastSos.t < 60000) sos(lastSos);
+let soonT = null; const soon = () => { clearTimeout(soonT); soonT = setTimeout(render, 120); };
+window.addEventListener("storage", (e) => { if (e.key === "nabu.live") liveUpdate(); else if (["nabu.en.v2", "nabu.inbox", "nabu.inbox.replies"].includes(e.key)) soon(); if (e.key === "nabu.crew.msg") sos(read("nabu.crew.msg", null)); });
+try { new BroadcastChannel("nabu-link").onmessage = (e) => { const d = e.data || {}; if (d.type === "hb") liveUpdate(d.hb); if (d.type === "act") soon(); }; } catch {}
+try { new BroadcastChannel("nabu-crew").onmessage = (e) => sos(e.data); } catch {}
+setInterval(render, 4000); setInterval(() => liveUpdate(), 3000);
+$("#switch").onclick = () => { location.href = "index.html"; };
+$("#freeze").onclick = () => { frozen = !frozen; if (!frozen) { forceNext = true; render(); } paintFreeze(); };
+$("#note-save").onclick = () => { const t = $("#notes").value.trim(); if (!t) { $("#notes").focus(); return; }
+  const S = read("nabu.en.v2", {}); const h = read("bhc.history", []); h.push({ who: sel, day: S.day || 1, at: Date.now(), kind: "note", text: t }); write("bhc.history", h.slice(-500));
+  $("#notes").value = ""; localStorage.removeItem("bhc.notes." + sel); toast("Note saved to the history."); forceNext = true; render(); };
+paintFreeze(); setInterval(stamp, 5000);
+</script>
+</body>
+</html>

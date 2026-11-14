@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nabu</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23c3a7e0'/%3E%3Ccircle cx='12' cy='12' r='5' fill='%23f3e6ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hud">
+    <button class="brand" id="brand" title="Back to the planet">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">NABU</span>
+    </button>
+    <div class="hud-mission">
+      <div class="hud-label">Mission Lyra-1</div>
+      <div class="hud-day"><span id="hud-day">Day 1</span> <span class="hud-sep">/</span> <span id="hud-phase">Launch</span></div>
+    </div>
+    <div class="hud-spacer"></div>
+    <button class="hud-coins" id="hud-coins" title="Earn coins">
+      <span class="coin" aria-hidden="true"></span>
+      <span id="hud-coins-val">0</span>
+      <span class="hud-coins-plus">+</span>
+    </button>
+    <span class="cam-dot" id="cam-dot" hidden title="The camera measures fatigue in the background (numbers only, no images)"><i></i>camera</span>
+    <div class="hud-sim">
+      <button class="ghost" id="btn-next-day" title="Simulate one day passing (demo)">Next day ▸</button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <!-- PLANET -->
+    <section class="view view-planet" id="view-planet">
+      <div class="crumbs"><span>Nabu</span> <span>/</span> <span>Planet surface</span></div>
+      <div class="map frame" id="map">
+        <div class="scene">
+          <img src="assets/map.webp" alt="The surface of planet Nabu from above, with the crews' bases">
+          <div class="map-markers" id="map-markers"></div>
+        </div>
+        <div class="infocard" id="map-card" hidden></div>
+      </div>
+      <div class="view-caption">
+        <h1>Planet Nabu</h1>
+        <p>Seven crews, on seven ships, at the same time. Click your base to descend, or the others to read their journal.</p>
+      </div>
+    </section>
+
+    <!-- BASE -->
+    <section class="view view-base" id="view-base" hidden>
+      <div class="crumbs"><button class="link" data-go="planet">Nabu</button> <span>/</span> <span>Lyra Base</span></div>
+      <div class="base-wrap">
+        <div class="base frame" id="base">
+          <div class="scene">
+            <img src="assets/base.webp" alt="Lyra Base from above: the central hub and five module sites" id="base-img">
+            <div class="base-markers" id="base-markers"></div>
+          </div>
+          <div class="infocard" id="base-card" hidden></div>
+        </div>
+        <aside class="base-side">
+          <h2>Lyra Base</h2>
+          <p class="muted">You start with one module. The other sites stay a mystery until you build them with coins as the mission goes on.</p>
+          <ol class="module-list" id="module-list"></ol>
+          <div class="wellness" id="wellness-card"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CORRIDOR: the tube between rooms -->
+    <section class="view view-corridor" id="view-corridor" hidden>
+      <div class="crumbs"><button class="link" data-go="planet">Nabu</button> <span>/</span> <button class="link" data-go="base">Lyra Base</button> <span>/</span> <span>Connecting tube</span></div>
+      <div class="corr frame" id="corr" data-state="open">
+        <div class="scene">
+          <img src="assets/corridor.webp" alt="Inside the connecting tube, looking at a round hatch">
+          <div class="hatch-ring" aria-hidden="true"></div>
+          <img class="hatch-lock" id="hatch-lock" src="assets/lock.webp" alt="Padlock" hidden>
+        </div>
+        <video id="corr-v" muted playsinline hidden></video>
+        <div class="corr-sign" aria-live="polite"><span id="corr-name">Bedroom</span></div>
+        <button class="corr-arrow prev" id="corr-prev" aria-label="Previous hatch">‹</button>
+        <button class="corr-arrow next" id="corr-next" aria-label="Next hatch">›</button>
+        <button class="corr-back" id="corr-back">‹ Back</button>
+        <div class="hatch-plaque" id="hatch-plaque"></div>
+        <nav class="tubemap" id="tubemap" aria-label="Tube map"></nav>
+      </div>
+    </section>
+
+    <!-- ROOM -->
+    <section class="view view-room" id="view-room" hidden>
+      <div class="crumbs"><button class="link" data-go="planet">Nabu</button> <span>/</span> <button class="link" data-go="base">Lyra Base</button> <span>/</span> <span id="room-name">Module</span></div>
+      <div class="room-stage">
+        <button class="room-nav prev" id="room-prev" aria-label="Previous room">‹</button>
+        <div class="room frame" id="room">
+          <div class="scene">
+            <img id="room-img" src="assets/room-living.webp" alt="">
+            <div class="room-tint" id="room-tint"></div>
+            <div class="room-decor" id="room-decor"></div>
+            <div class="room-hotspots" id="room-hotspots"></div>
+            <div class="wall-ui" id="wall-ui" hidden></div>
+            <div id="tv-layer" hidden>
+              <div id="tv-glass">
+                <iframe id="tv-app" title="Nabu Health on the TV"></iframe>
+                <div class="tv-beam"></div><div class="tv-sheen"></div>
+                <div id="tv-osd" role="status" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+          <div id="tv-kbwrap" hidden><div id="tv-kb" aria-label="Keyboard: only Backspace works"></div></div>
+          <div class="room-ui" id="room-ui"></div>
+          <canvas id="dust" aria-hidden="true"></canvas>
+          <div class="doorwipe" id="doorwipe" aria-hidden="true"></div>
+          <div class="room-banner" id="room-banner" hidden></div>
+          <div class="room-caption" id="room-caption"></div>
+      <div class="room-bar overlay">
+        <div class="room-bar-group">
+          <span class="hud-label">Light</span>
+          <div class="seg" id="light-seg">
+            <button data-light="warm">Warm</button><button data-light="neutral">Neutral</button><button data-light="cool">Cool</button>
+          </div>
+        </div>
+        <button class="primary" id="btn-shop">Market</button>
+        <button class="secondary" id="btn-earn">Earn coins</button>
+        
+      </div>
+        </div>
+        <button class="room-nav next" id="room-next" aria-label="Next room">›</button>
+      </div>
+      <div class="filmstrip" id="filmstrip"></div>
+      <nav class="roomline" id="roomline" aria-label="Go straight to a room"></nav>
+    </section>
+  </main>
+
+  <!-- PANEL (drawer) -->
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="panel" id="panel" hidden aria-modal="true" role="dialog">
+    <span class="tab-cam" aria-hidden="true"></span>
+    <div class="panel-head">
+      <button class="ghost" id="panel-back" hidden>‹ Back</button>
+      <h2 id="panel-title">Panel</h2>
+      <button class="ghost close" id="panel-close" aria-label="Close">✕</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+  </aside>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- ACCOUNT GATE: astronaut or psychologist -->
+  <div class="gate" id="gate">
+    <div class="gate-bg" aria-hidden="true"><img src="assets/planet-space.webp" alt=""><i class="gate-glow"></i><i class="gate-orbit o1"></i><i class="gate-orbit o2"></i></div>
+    <div class="gate-in">
+      <div class="gate-brand"><span class="brand-mark"></span><span>NABU</span></div>
+      <h1 class="gate-title">Who is signing in?</h1>
+      <p class="gate-sub">Mission Lyra-1 · one mission, two sides of the light delay</p>
+      <div class="gate-cards">
+        <button class="gate-card astro" id="gate-astro" style="--d:.15s">
+          <span class="gc-shine"></span>
+          <span class="gc-top"><span class="av gc-av" style="--ax:2;--ay:3"></span><span class="gc-tag">On Nabu</span></span>
+          <span class="gc-name">Astronaut</span>
+          <span class="gc-who">Commander · Lyra Base</span>
+          <span class="gc-list"><i>Your base, rooms and market</i><i>Tests, workouts, journals</i><i>Fatigue checked in the background</i></span>
+          <span class="gc-go">Enter the base <b>›</b></span>
+        </button>
+        <button class="gate-card psy" id="gate-psy" style="--d:.28s">
+          <span class="gc-shine"></span>
+          <span class="gc-top"><span class="av gc-av" style="--ax:3;--ay:3"></span><span class="gc-tag">On Earth</span></span>
+          <span class="gc-name">Psychologist</span>
+          <span class="gc-who">Dr. Irina Matei · Behavioral health</span>
+          <span class="gc-list"><i>Live view of the crew</i><i>Assessments, fatigue, alerts</i><i>Private calls and notes</i></span>
+          <span class="gc-go">Open the console <b>›</b></span>
+        </button>
+      </div>
+      <button class="gate-both" id="gate-both">Demo · open both side by side <span>astronaut here, psychologist in a new window</span></button>
+      <p class="gate-foot">The psychologist sees numbers and flags only. Never journal pages, questionnaire answers or camera images.</p>
+    </div>
+  </div>
+
+  <!-- INTRO -->
+  <div class="intro" id="intro">
+    <div class="scene"><img id="intro-planet" src="assets/planet-space.webp" alt="Planet Nabu seen from orbit"></div>
+    <canvas id="intro-stars" aria-hidden="true"></canvas>
+    <div class="intro-vignette" aria-hidden="true"></div>
+    <div class="intro-copy">
+      <div class="intro-ey">Mission Lyra-1 · 180 days</div>
+      <h1 class="intro-logo" aria-label="Nabu"><span>N</span><span>A</span><span>B</span><span>U</span></h1>
+      <p class="intro-sub">Your base on a faraway planet. Look after yourself, and it grows with you.</p>
+      <div class="intro-actions"><button class="primary intro-go" id="intro-go">Begin descent <span>▸</span></button><button class="link" id="intro-skip">Skip intro</button></div>
+    </div>
+  </div>
+
+  <!-- Cloud gate: the intro clip ends in clouds, which part over the surface -->
+  <div class="cloudgate" id="cloudgate" hidden aria-hidden="true">
+    <img id="cg-map" class="cg-map" src="assets/map.webp" alt="">
+    <img id="cg-sea" class="cg-sea" src="assets/clouds.webp" alt="">
+    <img id="cg-left" class="cg-bank left" src="assets/cloud-bank.webp" alt="">
+    <img id="cg-right" class="cg-bank right" src="assets/cloud-bank.webp" alt="">
+    <img id="cg-mist" class="cg-mist" src="assets/cloud-wisp.webp" alt="">
+  </div>
+
+  <!-- In-frame clip: plays inside the current view's frame and glides to the next view's frame -->
+  <div class="flight" id="flight" hidden>
+    <video id="flight-v" muted playsinline preload="auto"></video>
+    <div class="flight-title" id="flight-title"></div>
+    <button class="flight-skip" id="flight-skip">Skip ▸</button>
+  </div>
+
+  <!-- Cinematic transition: a Higgsfield clip, or a CSS zoom if the clip is missing -->
+  <div class="cine" id="cine" hidden>
+    <video id="cine-v" muted playsinline preload="auto"></video>
+    <div class="cine-title" id="cine-title"></div>
+    <button class="cine-skip" id="cine-skip">Skip ▸</button>
+  </div>
+
+  <script>window.NABU_EMBED = true;</script>
+  <script src="monitor.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

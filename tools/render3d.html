@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Turntable renderer</title>
+<style>body{margin:0;background:#3a3350}canvas{display:block}</style></head>
+<body>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+// Dev tool: loads one GLB and renders it from 8 angles (0..315°) with the same camera and light,
+// so a piece of furniture looks identical whichever way you turn it.
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+const SIZE = 512;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(SIZE, SIZE); renderer.setPixelRatio(1);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xfff1dc, 0x5a4a3a, 1.6));
+const key = new THREE.DirectionalLight(0xffe2b8, 1.4); key.position.set(-3, 5, 4); scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfe6ff, 0.35); fill.position.set(4, 2, 3); scene.add(fill);
+window.renderTurntable = async (url, opts = {}) => {
+  const gltf = await new GLTFLoader().loadAsync(url);
+  const obj = gltf.scene;
+  // keep the painted colours of the source picture: unlit material with the baked texture
+  obj.traverse((m) => { if (m.isMesh) { const old = m.material; const map = old.map || null;
+    m.material = opts.lit ? new THREE.MeshLambertMaterial({ map, color: map ? 0xffffff : old.color }) : new THREE.MeshBasicMaterial({ map, color: map ? 0xffffff : old.color, vertexColors: !!m.geometry.attributes.color && !map });
+    if (map) map.colorSpace = THREE.SRGBColorSpace; } });
+  // SAM meshes come with their own orientation: let the caller fix the base yaw / up axis
+  if (opts.rx) obj.rotation.x = opts.rx; if (opts.ry0) obj.rotation.y = opts.ry0;
+  const pivot = new THREE.Group(); pivot.add(obj); scene.add(pivot);
+  let box = new THREE.Box3().setFromObject(pivot); const c = box.getCenter(new THREE.Vector3());
+  obj.position.sub(c); box = new THREE.Box3().setFromObject(pivot);
+  obj.position.y -= box.min.y; // stand on y = 0
+  box = new THREE.Box3().setFromObject(pivot);
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  const elev = (opts.elev ?? 16) * Math.PI / 180, r = sphere.radius * 1.08;
+  const cam = new THREE.OrthographicCamera(-r, r, r, -r, 0.01, 100);
+  cam.position.set(0, sphere.center.y + Math.sin(elev) * 10, Math.cos(elev) * 10); cam.lookAt(0, sphere.center.y, 0);
+  const out = [];
+  for (let i = 0; i < 8; i++) {
+    pivot.rotation.y = -i * Math.PI / 4;
+    renderer.render(scene, cam);
+    out.push(renderer.domElement.toDataURL("image/png"));
+  }
+  scene.remove(pivot);
+  return { views: out, size: box.getSize(new THREE.Vector3()).toArray() };
+};
+window.ready = true;
+</script>
+</body></html>

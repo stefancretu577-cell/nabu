@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nabu · ARED Coach</title>
+<style>
+/* Consolă de antrenament: cerneală navy, accent portocaliu; imaginea video în stânga, controalele și jurnalul seriei în dreapta. */
+:root{
+  --bg:#F3F5F8; --panel:#FFFFFF; --ink:#16213A; --muted:#5B6782; --line:#D5DBE6; --soft:#E9EDF4;
+  --accent:#D9581A; --accent-ink:#FFFFFF;
+  --ok:#1E7F4E; --ok-bg:#DFF2E7; --warn:#9A6B00; --warn-bg:#FFF2CC; --bad:#B42323; --bad-bg:#FBE0E0;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#0E1424; --panel:#161E33; --ink:#E6EBF5; --muted:#9AA6C0; --line:#2A3552; --soft:#1D2742;
+  --accent:#F07A3A; --accent-ink:#10131C; --ok:#5BD08F; --ok-bg:#163828; --warn:#F2C24F; --warn-bg:#3A2F10; --bad:#FF7A7A; --bad-bg:#401C1F;
+  color-scheme:dark; } }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-size:26px} h2{font-size:18px} h3{font-size:15px}
+p{margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 40px;display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 24px;align-items:flex-end;border-bottom:3px solid var(--accent);padding-bottom:10px}
+.sub{color:var(--muted);max-width:70ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+@media (max-width:960px){.layout{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+.stage{position:relative;background:#0B1020;border-radius:10px;overflow:hidden;aspect-ratio:4/3}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.stage video{display:none}
+.hud{position:absolute;left:12px;top:12px;display:grid;gap:6px}
+.big{font:700 64px/1 var(--mono);color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.pill{display:inline-block;font:600 12px var(--mono);padding:3px 9px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
+.status{position:absolute;left:12px;right:12px;bottom:12px;font:600 14px var(--body);color:#fff;background:rgba(0,0,0,.55);border-radius:8px;padding:8px 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-weight:600;font-size:13px}
+.field{display:grid;gap:4px}
+select,input[type=number]{font:15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+button{font:600 14px var(--body);border-radius:8px;padding:9px 14px;border:1px solid var(--line);background:var(--soft);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;flex:1;background:var(--panel)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.chkrow{display:flex;gap:8px;align-items:flex-start;font-weight:500}.chkrow input{margin-top:3px;flex:none}
+.muted{color:var(--muted)} .small{font-size:13px}
+.reps{display:grid;gap:6px;max-height:280px;overflow:auto}
+.rep{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;gap:4px;font-size:13px}
+.rep .h{display:flex;justify-content:space-between;font-weight:600}
+.chk{display:flex;gap:6px;align-items:baseline}
+.chk .dot{width:8px;height:8px;border-radius:50%;flex:none;transform:translateY(-1px)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:var(--soft);border-radius:8px;padding:8px;display:grid;gap:2px}
+.metric b{font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.metric span{font-size:12px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:12px}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.alert{border-radius:8px;padding:10px 12px;border:1px solid var(--line);background:var(--soft);font-size:13px}
+.alert.warn{background:var(--warn-bg);border-color:var(--warn)}
+textarea{width:100%;min-height:80px;font:12px var(--mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:960px){.grid4{grid-template-columns:1fr 1fr}}
+.tag{display:inline-block;font:600 11px var(--mono);padding:2px 7px;border-radius:999px;white-space:nowrap}
+.tag.sure{background:var(--ok-bg);color:var(--ok)} .tag.approx{background:var(--warn-bg);color:var(--warn)} .tag.est{background:var(--bad-bg);color:var(--bad)} .tag.same{background:var(--soft);color:var(--muted)}
+td.chg{font-weight:700}
+[hidden]{display:none!important}
+/* Embedded in Nabu: always dark, matching the app; header and outer page chrome removed. */
+:root{--bg:#1f1c2c;--panel:#2a2639;--ink:#efe9f7;--muted:#a59cb8;--line:#3a3550;--soft:#15131f;
+  --accent:#3fc7b5;--accent-ink:#062420;--ok:#6fd38f;--ok-bg:#163828;--warn:#f2c14e;--warn-bg:#3a2f10;--bad:#e8798a;--bad-bg:#401c1f;color-scheme:dark}
+body.embedded{background:transparent}
+body.embedded .wrap{padding:0;max-width:none}
+body.embedded header{display:none}
+body.embedded .layout{grid-template-columns:minmax(0,1fr) 330px}
+@media (max-width:680px){body.embedded .layout{grid-template-columns:1fr}}
+body.embedded .layout{grid-template-columns:minmax(0,1fr) 300px}
+body.embedded .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:grid;gap:4px">
+      <span class="small muted">Nabu · NASA Space Apps 2026 · prototype</span>
+      <h1>ARED Coach — exercise recognition with the camera</h1>
+      <p class="sub">Counts reps and checks form on the exercises of the ISS resistive device (ARED): squat, deadlift, bench press, heel raise and biceps curl. Angles are computed in 3D, so it works whatever your orientation to the camera.</p>
+    </div>
+  </header>
+
+  <div class="alert warn" id="protoWarn" hidden>This page is opened straight from a file. The camera and the MediaPipe model only work reliably over <b>http://localhost</b> or <b>https</b>: start Nabu with <code>start.bat</code>. The demo works anyway.</div>
+  <div class="layout">
+    <main class="card">
+      <div class="stage" id="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="canvas" width="960" height="720" aria-label="Camera image with the detected skeleton"></canvas>
+        <div class="hud">
+          <span class="pill" id="exPill">Squat</span>
+          <span class="big" id="repBig">0</span>
+          <span class="pill" id="angPill">angle: —</span>
+        </div>
+        <div class="status" id="status">Pick a source: camera, video file or demo.</div>
+      </div>
+      <div class="metrics" aria-live="polite">
+        <div class="metric"><b id="mReps">0</b><span>reps</span></div>
+        <div class="metric"><b id="mGood">0</b><span>good form</span></div>
+        <div class="metric"><b id="mRom">—</b><span>average range</span></div>
+        <div class="metric"><b id="mTempo">—</b><span>average descent</span></div>
+      </div>
+      <div class="alert" id="detectBox" hidden></div>
+      <div class="field">
+        <span class="small muted">Tracked angle over the last 8 s · solid line = your angle · green dashes = “up” threshold, yellow dashes = “down” threshold · dots = counted reps</span>
+        <canvas id="spark" width="900" height="120" style="width:100%;height:120px;background:var(--soft);border-radius:8px" aria-label="Angle over time"></canvas>
+      </div>
+      <details open>
+        <summary class="small"><b>Diagnostics</b>: what the program sees now</summary>
+        <table><tbody id="diag"></tbody></table>
+      </details>
+    </main>
+
+    <aside class="card">
+      <div class="field">
+        <label>Image source</label>
+        <div class="seg" role="group" aria-label="Image source">
+          <button id="srcCam" aria-pressed="false">Camera</button>
+          <button id="srcFile" aria-pressed="false">Video file</button>
+          <button id="srcDemo" aria-pressed="false">Demo</button>
+        </div>
+        <input type="file" id="fileIn" accept="video/*" hidden>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="exSel">Exercise</label>
+          <select id="exSel">
+            <option value="squat">Squat</option>
+            <option value="deadlift">Deadlift</option>
+            <option value="bench">Bench press</option>
+            <option value="heel">Heel raise</option>
+            <option value="curl">Biceps curl</option>
+          </select></div>
+        <div class="field"><label for="loadIn">ARED load (kg)</label><input id="loadIn" type="number" min="0" max="272" step="1" value="80"></div>
+        <div class="field"><label for="targetIn">Target reps</label><input id="targetIn" type="number" min="1" max="50" value="8"></div>
+        <div class="field"><label for="demoQ">Demo quality</label>
+          <select id="demoQ"><option value="good">Good form</option><option value="mixed">Mixed</option><option value="bad">Frequent mistakes</option></select></div>
+      </div>
+      <div class="field"><label for="rateSel">Video speed (for files)</label>
+        <select id="rateSel"><option value="1">Normal</option><option value="0.5">Half (more precise)</option><option value="0.25">Quarter</option></select></div>
+      <p class="small" id="parts"></p>
+      <label class="chkrow small"><input type="checkbox" id="showAll"> Also show the rest of the body, faded (visual only)</label>
+      <label class="chkrow small"><input type="checkbox" id="autoDet"> Suggest the exercise automatically (briefly analyses the whole body, nothing is saved)</label>
+      <p class="small muted">Reps are counted automatically as soon as the source starts. Thresholds adapt to your range of motion.</p>
+      <div class="row">
+        <button id="startSet">New set (reset)</button>
+        <button class="primary" id="endSet">Save set · earn coins</button>
+      </div>
+      <h3>Reps in this set</h3>
+      <div class="reps" id="repList"><p class="small muted">Reps appear here, each with its form check.</p></div>
+      <h3>Today’s session</h3>
+      <div style="overflow-x:auto"><table id="sessTable"><thead><tr><th>Exercise</th><th>Reps</th><th>Good</th><th>kg</th><th>Volume</th><th>Coins</th></tr></thead><tbody></tbody></table></div>
+      <p class="small" id="sessTot">Total volume: 0 kg · Nabu coins: 0</p>
+      <details>
+        <summary class="small">Export for the app (JSON)</summary>
+        <textarea id="json" readonly></textarea>
+        <button id="copyJson">Copy</button> <span class="small muted" id="copyMsg"></span>
+      </details>
+      <div class="alert small">
+        <b>Why it matters.</b> On the ISS astronauts exercise about two hours a day. A study of 46 astronauts found that more resistive exercise volume (reps × load) was linked to more leg strength and muscle and healthier bones. This coach measures exactly that volume. Coins are earned for every finished set, plus extra for reps with good form.
+      </div>
+      <p class="small muted">Video is processed only on this device; it is never saved or sent anywhere. Educational prototype, not a medical device.</p>
+    </aside>
+  </div>
+
+  <section class="card" aria-labelledby="gravH">
+    <div style="display:grid;gap:4px">
+      <h2 id="gravH">Converting between gravities</h2>
+      <p class="small muted" style="max-width:80ch">Joint angles come from anatomy, so they stay the same anywhere. Forces, work and timing change, each with the ratio k = g source / g target. The current set (load, reps, angles, duration) is used automatically.</p>
+    </div>
+    <div class="grid4">
+      <div class="field"><label for="gFrom">Measured on</label>
+        <select id="gFrom"><option value="pamant">Earth (9.81 m/s²)</option><option value="marte">Mars (3.71 m/s²)</option><option value="luna">Moon (1.62 m/s²)</option><option value="custom">Other gravity…</option></select></div>
+      <div class="field" id="gFromCustomF" hidden><label for="gFromCustom">source g (m/s²)</label><input id="gFromCustom" type="number" min="0" step="0.01" value="9.81"></div>
+      <div class="field"><label for="gTo">Converted to</label>
+        <select id="gTo"><option value="marte">Mars (3.71 m/s²)</option><option value="pamant">Earth (9.81 m/s²)</option><option value="luna">Moon (1.62 m/s²)</option><option value="custom">Other gravity…</option></select></div>
+      <div class="field" id="gToCustomF" hidden><label for="gToCustom">target g (m/s²)</label><input id="gToCustom" type="number" min="0" step="0.01" value="3.71"></div>
+      <div class="field"><label for="massIn">Body mass (kg)</label><input id="massIn" type="number" min="30" max="200" step="1" value="75"></div>
+      <div class="field"><label for="dropIn">Travel per rep (m)</label><input id="dropIn" type="number" min="0.05" max="1.5" step="0.01" value="0.45"></div>
+      <div class="field"><label for="jumpIn">Jump height (m)</label><input id="jumpIn" type="number" min="0" max="3" step="0.01" value="0.40"></div>
+      <div class="field"><label for="walkIn">Walking speed (m/s)</label><input id="walkIn" type="number" min="0" max="5" step="0.1" value="1.4"></div>
+    </div>
+    <div class="field">
+      <label>What stays equal</label>
+      <div class="seg" role="group" aria-label="Conversion mode">
+        <button id="modeForce" aria-pressed="true">Same force (add weight, reps 1:1)</button>
+        <button id="modeWork" aria-pressed="false">Same load (more reps)</button>
+      </div>
+    </div>
+    <div class="row"><button id="gSwap">Swap direction</button><button id="gApply">Use the converted load for ARED</button><span class="small muted" id="gK"></span></div>
+    <div class="alert warn" id="gErr" hidden></div>
+    <div style="overflow-x:auto"><table id="gTable"><thead><tr><th>Parameter</th><th id="gThFrom">Source</th><th id="gThTo">Target</th><th>Scaling law</th><th>Confidence</th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted" id="gNote"></p>
+    <p class="small muted"><span class="tag sure">SURE</span> pure physics (F = m·g, W = m·g·h) · <span class="tag approx">APPROX</span> dynamic similarity (Froude) or same take-off speed · <span class="tag est">ESTIMATE</span> simple model, to validate with real data.</p>
+  </section>
+</div>
+
+<script>
+"use strict";
+// CORE-START — logică pură (testabilă fără browser)
+function angle3(a,b,c){
+  const v1x=a.x-b.x,v1y=a.y-b.y,v1z=a.z-b.z,v2x=c.x-b.x,v2y=c.y-b.y,v2z=c.z-b.z;
+  const n=Math.hypot(v1x,v1y,v1z)*Math.hypot(v2x,v2y,v2z);
+  if(!n)return NaN;
+  const d=(v1x*v2x+v1y*v2y+v1z*v2z)/n;
+  return Math.acos(Math.max(-1,Math.min(1,d)))*180/Math.PI;
+}
+function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)}
+const avg=(a,b)=>(a+b)/2;
+
+// Definiția fiecărui unghi: [punct, vârf, punct] pentru stânga și dreapta (indici MediaPipe).
+const ANGLE_DEF={knee:[[23,25,27],[24,26,28]],hip:[[11,23,25],[12,24,26]],elbow:[[11,13,15],[12,14,16]],sh:[[13,11,23],[14,12,24]],ank:[[25,27,31],[26,28,32]],barTilt:[[11,12,15,16],[]]};
+const ALL_ANGLES=Object.keys(ANGLE_DEF);
+// Punctele corpului de care are nevoie un exercițiu = doar cele din unghiurile lui.
+function keysFor(angles){const s=new Set();for(const n of angles)for(const side of ANGLE_DEF[n])for(const i of side)s.add(i);return [...s].sort((a,b)=>a-b)}
+// Unghiurile din coordonatele 3D „world” (metri, centrate pe bazin): nu depind de orientarea camerei.
+// Se calculează DOAR unghiurile cerute; restul corpului este ignorat.
+function jointAngles(w,need=ALL_ANGLES){
+  const o={};
+  for(const n of need){
+    if(n==="barTilt"){o.barTilt=barTilt(w);continue}
+    const [l,r]=ANGLE_DEF[n];o[n+"L"]=angle3(w[l[0]],w[l[1]],w[l[2]]);o[n+"R"]=angle3(w[r[0]],w[r[1]],w[r[2]]);
+  }
+  return o;
+}
+function barTilt(w){
+  return {
+    // înclinarea barei = unghiul dintre linia încheieturilor și linia umerilor (nu depinde de orientarea camerei)
+    v:(()=>{const u={x:w[16].x-w[15].x,y:w[16].y-w[15].y,z:w[16].z-w[15].z},v={x:w[12].x-w[11].x,y:w[12].y-w[11].y,z:w[12].z-w[11].z};const g=angle3(u,{x:0,y:0,z:0},v);return Math.min(g,180-g)})()
+  }.v;
+}
+const JOINTS=["knee","hip","elbow","sh","ank"];
+// Alege partea corpului: „B” = ambele, „L” / „R” = doar partea vizibilă (filmat din lateral, partea opusă e ascunsă).
+function pickSide(a,side){const o={};for(const j of JOINTS){if(a[j+"L"]===undefined)continue;o[j]=side==="B"?avg(a[j+"L"],a[j+"R"]):a[j+side]}if(a.barTilt!==undefined)o.barTilt=a.barTilt;return o}
+function sideVisibility(norm,keys){
+  if(!norm)return {L:1,R:1};
+  const v=ids=>ids.length?ids.reduce((s,i)=>s+(norm[i].visibility??1),0)/ids.length:1;
+  return {L:v(keys.filter(i=>i%2===1)),R:v(keys.filter(i=>i%2===0))}; // în MediaPipe, stânga = indici impari
+}
+function chooseSide(vis){ if(vis.L>=0.65&&vis.R>=0.65)return "B"; return vis.L>=vis.R?"L":"R"; }
+
+class Smoother{ // medie exponențială pe fiecare unghi
+  constructor(alpha=0.5){this.a=alpha;this.s=null}
+  push(o){ if(!this.s){this.s={...o};return {...this.s}}
+    for(const k in o){ if(Number.isFinite(o[k])) this.s[k]=Number.isFinite(this.s[k])?this.a*o[k]+(1-this.a)*this.s[k]:o[k]; }
+    return {...this.s}; }
+}
+
+function ok(t){return {ok:true,t}} function warn(t){return {ok:false,t}}
+function fmt(x){return Number.isFinite(x)?Math.round(x):"—"}
+const tempo=r=>r.ecc>=0.8?ok("Controlled descent ("+r.ecc.toFixed(1)+" s)"):warn("Lower more slowly: "+r.ecc.toFixed(1)+" s, target ≥ 1 s");
+
+// joint = articulația urmărită; mode „flex” = unghiul scade în timpul efortului, „raise” = crește;
+// minRange = amplitudinea minimă (grade) ca mișcarea să conteze drept repetare.
+const EXERCISES={
+  squat:{name:"Squat",joint:"knee",mode:"flex",minRange:30,angles:["knee"],unit:"knee",
+    checks:r=>[
+      r.min<=100?ok("Full depth ("+fmt(r.min)+"°)"):warn("Go lower: knee at "+fmt(r.min)+"°, target ≤ 100°"),
+      r.side==="B"?(Math.abs(r.atMin.kneeL-r.atMin.kneeR)<=15?ok("Left–right symmetry"):warn("Knees uneven: "+fmt(Math.abs(r.atMin.kneeL-r.atMin.kneeR))+"°")):null,
+      tempo(r)]},
+  deadlift:{name:"Deadlift",joint:"hip",mode:"flex",minRange:30,angles:["hip","knee"],unit:"hip",
+    checks:r=>[
+      r.atMinS.knee-r.atMinS.hip>=20?ok("Hinging at the hip (knee "+fmt(r.atMinS.knee)+"°, hip "+fmt(r.atMinS.hip)+"°)"):warn("Too much knee: push your hips back"),
+      r.atEndS.knee>=155?ok("Full extension at the top"):warn("Straighten your knees fully at the top"),
+      tempo(r)]},
+  bench:{name:"Bench press",joint:"elbow",mode:"flex",minRange:30,angles:["elbow","barTilt"],unit:"elbow",
+    checks:r=>[
+      r.min<=90?ok("Full range (elbow "+fmt(r.min)+"°)"):warn("Bring the bar closer to your chest: elbow at "+fmt(r.min)+"°, target ≤ 90°"),
+      r.side==="B"?(Math.abs(r.atMin.elbowL-r.atMin.elbowR)<=15?ok("Arms symmetric"):warn("One arm goes lower than the other")):null,
+      r.side==="B"?(r.atMin.barTilt<=12?ok("Bar level with your shoulders"):warn("The bar tilts to one side ("+fmt(r.atMin.barTilt)+"°)")):null,
+      tempo(r)]},
+  heel:{name:"Heel raise",joint:"ank",mode:"raise",minRange:12,minDur:0.6,angles:["ank","knee"],unit:"ankle",
+    checks:r=>[
+      r.rom>=15?ok("Full raise (+"+fmt(r.rom)+"°)"):warn("Rise higher on your toes: +"+fmt(r.rom)+"°, target ≥ 15°"),
+      r.kneeMin>=155?ok("Knees straight"):warn("Keep your knees straight ("+fmt(r.kneeMin)+"°)")]},
+  curl:{name:"Biceps curl",joint:"elbow",mode:"flex",minRange:40,angles:["elbow","sh"],unit:"elbow",
+    checks:r=>[
+      r.min<=55?ok("Full curl (elbow "+fmt(r.min)+"°)"):warn("Curl higher: elbow at "+fmt(r.min)+"°, target ≤ 55°"),
+      r.shRange<=25?ok("Elbow fixed by your side"):warn("Your elbow moves: the arm swings "+fmt(r.shRange)+"°"),
+      tempo(r)]}
+};
+
+for(const k in EXERCISES)EXERCISES[k].keys=keysFor(EXERCISES[k].angles);
+const PART_NAMES={11:"left shoulder",12:"right shoulder",13:"left elbow",14:"right elbow",15:"left wrist",16:"right wrist",23:"left hip",24:"right hip",25:"left knee",26:"right knee",27:"left ankle",28:"right ankle",31:"left toes",32:"right toes"};
+
+// Numărător cu praguri ADAPTIVE: se uită la ultimele 6 s, află poziția de sus și de jos a persoanei
+// și numără o repetare când semnalul coboară în ultimii 35% ai amplitudinii și urcă înapoi în primii 25%.
+// Funcționează oricare ar fi unghiurile exacte ale persoanei; formele se judecă separat, cu pragurile fixe.
+class RepCounter{
+  constructor(ex){this.ex=ex;this.state="top";this.buf=[];this.count=0;this.cur=null;this.info={range:0,ready:false}}
+  update(t,a,side="B"){
+    const ex=this.ex,S=pickSide(a,side),s=S[ex.joint]; if(!Number.isFinite(s))return null;
+    const x=ex.mode==="raise"?-s:s;
+    this.buf.push([t,x]); while(this.buf.length&&t-this.buf[0][0]>6)this.buf.shift();
+    let xmax=-Infinity,xmin=Infinity; for(const b of this.buf){if(b[1]>xmax)xmax=b[1];if(b[1]<xmin)xmin=b[1]}
+    const range=xmax-xmin,enter=xmin+0.35*range,exit=xmax-0.25*range,ready=range>=ex.minRange;
+    this.info={range,ready,enter,exit,x,s,side,state:this.state};
+    if(this.state==="top"){
+      if(!this.cur||x>=exit){this.cur={tStart:t,topX:x};this.track(S)}
+      else this.track(S);
+      if(ready&&x<=enter){this.state="bottom";Object.assign(this.cur,{min:x,tMin:t,atMin:{...a},atMinS:S})}
+      return null;
+    }
+    const c=this.cur; this.track(S);
+    if(x<c.min){c.min=x;c.tMin=t;c.atMin={...a};c.atMinS=S}
+    if(x>=exit){
+      this.state="top"; const dur=t-c.tStart;
+      const rep={n:this.count+1,side,tStart:c.tStart,tEnd:t,ecc:c.tMin-c.tStart,con:t-c.tMin,
+        atMin:c.atMin,atMinS:c.atMinS,atEnd:{...a},atEndS:S,min:ex.mode==="raise"?NaN:c.min,rom:c.topX-c.min,
+        shRange:c.shMax-c.shMin,kneeMin:c.kneeMin};
+      this.cur={tStart:t,topX:x};this.track(S);
+      if(dur<(ex.minDur||0.4)||dur>15||rep.rom<0.8*ex.minRange)return null; // prea scurtă, prea lungă sau prea mică: zgomot, nu repetare
+      this.count++; rep.checks=ex.checks(rep).filter(Boolean); rep.good=rep.checks.every(c=>c.ok); return rep;
+    }
+    return null;
+  }
+  track(S){const c=this.cur;if(!c)return;if(Number.isFinite(S.sh)){c.shMin=Math.min(c.shMin??S.sh,S.sh);c.shMax=Math.max(c.shMax??S.sh,S.sh)}if(Number.isFinite(S.knee))c.kneeMin=Math.min(c.kneeMin??S.knee,S.knee)}
+}
+
+// Recunoaștere automată după ce articulații se mișcă în ultimele ~3 s (cadre deja reduse la o parte a corpului).
+function detectExercise(frames){
+  if(frames.length<20)return null;
+  const rng=k=>{const v=frames.map(f=>f[k]).filter(Number.isFinite);return v.length?Math.max(...v)-Math.min(...v):0};
+  const mean=k=>{const v=frames.map(f=>f[k]).filter(Number.isFinite);return v.reduce((s,x)=>s+x,0)/Math.max(1,v.length)};
+  const knee=rng("knee"),hip=rng("hip"),elb=rng("elbow"),ank=rng("ank"),sh=mean("sh");
+  if(elb>35&&knee<20&&hip<25)return sh>55?"bench":"curl";
+  if(hip>30&&knee>30)return knee>=0.6*hip?"squat":"deadlift";
+  if(hip>30&&knee<=30)return "deadlift";
+  if(ank>8&&knee<15&&hip<15)return "heel";
+  return null;
+}
+
+// Generator sintetic de schelet 3D (pentru demo și teste). y în sus, x înainte, z lateral.
+function seg(p,deg,L){const r=deg*Math.PI/180;return {x:p.x+L*Math.sin(r),y:p.y+L*Math.cos(r),z:p.z}}
+function blank(){return Array.from({length:33},()=>({x:0,y:1,z:0,visibility:1}))}
+function standing(w,side,z,a,K,H,arms){
+  const iA=side?27:28,iK=side?25:26,iH=side?23:24,iS=side?11:12,iE=side?13:14,iW=side?15:16,iHe=side?29:30,iT=side?31:32;
+  const A={x:0,y:0.08,z};w[iA]=A;w[iHe]={x:-0.05,y:0,z};w[iT]={x:0.15,y:0,z};
+  w[iK]=seg(A,a,0.42); const b=a-(180-K); w[iH]=seg(w[iK],b,0.45); const c=b+(180-H);
+  const sh=seg(w[iH],c,0.5); sh.z=z*1.8; w[iS]=sh; w[iH].z=z;
+  if(arms==="hang"){w[iE]=seg(sh,180,0.3);w[iW]=seg(w[iE],180,0.27)}
+  else{w[iE]=seg(sh,c+200,0.3);w[iW]=seg(w[iE],c+345,0.27)}
+  return c;
+}
+function synthPose(ex,p,q){ // p: 0 sus → 1 jos; q: 1 = formă bună, 0 = formă slabă
+  const w=blank(); const L=(g,b)=>g*q+b*(1-q);
+  if(ex==="squat"){for(const side of [1,0]){const kMin=L(85,100)+(side?0:L(0,16));standing(w,side,side?0.1:-0.1,5+25*p,175-p*(175-kMin),175-p*(175-75),"bar")}}
+  else if(ex==="deadlift"){for(const side of [1,0]){standing(w,side,side?0.1:-0.1,5+L(8,30)*p,175-p*(175-L(145,100)),175-p*(175-L(85,95)),"hang")}}
+  else if(ex==="curl"){for(const side of [1,0]){standing(w,side,side?0.1:-0.1,0,178,178,"hang");const S=w[side?11:12];const E={x:S.x+L(0,0.16)*p,y:S.y-0.3,z:S.z};w[side?13:14]=E;const th=Math.atan2(S.x-E.x,S.y-E.y)*180/Math.PI;w[side?15:16]=seg(E,th+170-p*(170-L(40,58)),0.27)}}
+  else if(ex==="heel"){for(const side of [1,0]){const z=side?0.1:-0.1,phi=L(25,9)*p*Math.PI/180;const T={x:0.15,y:0,z};
+      const A={x:T.x-0.15*Math.cos(phi)+0.08*Math.sin(phi),y:T.y+0.15*Math.sin(phi)+0.08*Math.cos(phi),z};
+      w[side?31:32]=T;w[side?29:30]={x:T.x-0.2*Math.cos(phi),y:0.2*Math.sin(phi),z};w[side?27:28]=A;
+      const kneeBend=L(0,30)*p;w[side?25:26]=seg(A,kneeBend,0.42);
+      const Hh=seg(w[side?25:26],-kneeBend,0.45);w[side?23:24]=Hh;const S=seg(Hh,0,0.5);S.z=z*1.8;w[side?11:12]=S;
+      w[side?13:14]=seg(S,180,0.3);w[side?15:16]=seg(w[side?13:14],180,0.27)}}
+  else if(ex==="bench"){for(const side of [1,0]){const z=side?0.1:-0.1,sg=side?1:-1;
+      w[side?23:24]={x:-0.5,y:0.45,z};w[side?25:26]={x:-0.92,y:0.45,z};w[side?27:28]={x:-0.92,y:0.05,z};w[side?29:30]={x:-0.97,y:0,z};w[side?31:32]={x:-0.77,y:0,z};
+      const S={x:0,y:0.45,z:0.18*sg};w[side?11:12]=S;
+      const beta=(side?L(110,95):L(110,75))*p*Math.PI/180;
+      const E={x:0,y:S.y+0.3*Math.cos(beta),z:S.z+sg*0.3*Math.sin(beta)};w[side?13:14]=E;w[side?15:16]={x:0,y:E.y+0.27,z:E.z}}}
+  const mS={x:(w[11].x+w[12].x)/2,y:(w[11].y+w[12].y)/2,z:0};
+  w[0]=ex==="bench"?{x:mS.x+0.2,y:mS.y+0.05,z:0,visibility:1}:{x:mS.x+0.05,y:mS.y+0.2,z:0,visibility:1};
+  return w.map(o=>({visibility:1,...o}));
+}
+// ---- Transpunere între gravitații (port din Python) ----
+// Unghiurile nu depind de gravitație; forțele, lucrul mecanic și timpii se scalează cu k = g_sursă / g_țintă.
+const GRAV={pamant:9.81,marte:3.71,luna:1.62};
+const LIFTED=0.88; // ~88% din masa corpului se ridică la genuflexiune
+function rnd(x,n){const f=10**n;return Math.round(x*f)/f}
+// SIGUR: lucrul mecanic pe repetare.
+function squatWork(massKg,loadKg,dropM,g){return (LIFTED*massKg+loadKg)*g*dropM}
+// Transpune parametrii măsurați la gFrom în echivalentul lor la gTo. Simetrică: convert(convert(p,a,b),b,a) = p.
+// keepLoadEqual=true  → greutatea suplimentară necesară ca mușchii/oasele să simtă ACEEAȘI forță; repetările rămân 1:1.
+// keepLoadEqual=false → păstrează sarcina externă și crește numărul de repetări ca lucrul mecanic total să fie egal.
+function convertParams(p,gFrom,gTo,keepLoadEqual=true){
+  if(!(gTo>0)||!(gFrom>0))throw new Error("At 0 g there is no weight: use a resistive device and measure force directly (N), not mass.");
+  const k=gFrom/gTo,lifted=LIFTED*p.bodyMassKg,forceFrom=(lifted+p.externalLoadKg)*gFrom;
+  let loadTo,repsTo,workTo,capped=false;
+  if(keepLoadEqual){
+    loadTo=forceFrom/gTo-lifted;repsTo=p.reps;workTo=p.workPerRepJ; // SIGUR: aceeași forță, aceeași cursă
+    if(loadTo<0){capped=true;loadTo=0;repsTo=p.reps/k;workTo=p.workPerRepJ/k*(lifted/(lifted+p.externalLoadKg))} // spre g mai mare: corpul singur e deja prea greu
+  }else{
+    loadTo=p.externalLoadKg;workTo=p.workPerRepJ/k; // SIGUR: W = m·g·h
+    repsTo=p.reps*k;                                 // ESTIMARE: același lucru mecanic total
+  }
+  return {...p,externalLoadKg:rnd(loadTo,2),reps:rnd(repsTo,1),workPerRepJ:rnd(workTo,1),
+    repDurationS:rnd(p.repDurationS*Math.sqrt(k),2), // APROX (Froude): timpii mișcărilor dominate de gravitație ~ 1/√g
+    jumpHeightM:rnd(p.jumpHeightM*k,3),              // APROX: aceeași viteză de desprindere → h = v²/(2g)
+    walkSpeedMs:rnd(p.walkSpeedMs/Math.sqrt(k),2),   // APROX (Froude): v ~ √(g·lungimea piciorului)
+    k,capped,forceN:rnd((lifted+loadTo)*gTo,0)};     // kneeMinDeg, kneeMaxDeg, bodyMassKg: neschimbate
+}
+// Numărător pe adâncime normalizată 0..1 (0 = în picioare, 1 = jos de tot), din calibrarea utilizatorului:
+// aceleași praguri merg pe Pământ, pe Marte și în 0 g (unde postura de repaus e ~130°, nu 180°).
+class SquatCounter{
+  constructor(kneeMinDeg,kneeMaxDeg,down=0.7,up=0.2){this.lo=kneeMinDeg;this.hi=kneeMaxDeg;this.down=down;this.up=up;this.isDown=false;this.count=0}
+  depth(kneeDeg){return (this.hi-kneeDeg)/(this.hi-this.lo)}
+  update(kneeDeg){const d=this.depth(kneeDeg);
+    if(!this.isDown&&d>=this.down)this.isDown=true;
+    else if(this.isDown&&d<=this.up){this.isDown=false;this.count++}
+    return this.count}
+}
+// CORE-END
+</script>
+
+<script>
+"use strict";
+/* ---------- aplicația ---------- */
+const $=id=>document.getElementById(id);
+const canvas=$("canvas"),ctx=canvas.getContext("2d"),video=$("video"),spark=$("spark"),sctx=spark.getContext("2d");
+let source=null,landmarker=null,rafId=null,lastVideoTime=-1,delegateUsed="—",detectErr=null;
+let smoother=new Smoother(),winFrames=[],counter=null,setReps=[],session=[],hist=[];
+let fpsT=[],lastSide="B",lastVis={L:0,R:0},personSeen=false;
+let demo={t0:0,period:3.2};
+const STORE="nabu.ared.v1";
+let lastConv=null,keepLoad=true;
+try{session=JSON.parse(localStorage.getItem(STORE))||[]}catch(e){session=[]}
+
+function setStatus(t){$("status").textContent=t}
+function exKey(){return $("exSel").value}
+function ex(){return EXERCISES[exKey()]}
+function newCounter(){counter=new RepCounter(ex());setReps=[];hist=[];renderReps();updateMetrics()}
+$("exSel").addEventListener("change",()=>{$("exPill").textContent=ex().name;smoother=new Smoother();winFrames=[];newCounter();renderParts()});
+function renderParts(){const G={11:"shoulders",12:"shoulders",13:"elbows",14:"elbows",15:"wrists",16:"wrists",23:"hips",24:"hips",25:"knees",26:"knees",27:"ankles",28:"ankles",31:"toes",32:"toes"};$("parts").textContent="Tracked: "+[...new Set(ex().keys.map(i=>G[i]))].join(", ")+". The rest of the body is ignored."}
+
+if(location.protocol==="file:"){$("protoWarn").hidden=false}
+
+/* ---------- MediaPipe (încărcat doar pentru cameră/fișier) ---------- */
+const MP_VER="0.10.14";
+const MODEL="https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+async function loadLandmarker(){
+  if(landmarker)return landmarker;
+  setStatus("Loading the MediaPipe Pose model… (the first time takes a few seconds)");
+  const vision=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`);
+  const files=await vision.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`);
+  const opts=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:"VIDEO",numPoses:1,
+    minPoseDetectionConfidence:0.4,minPosePresenceConfidence:0.4,minTrackingConfidence:0.4});
+  try{landmarker=await vision.PoseLandmarker.createFromOptions(files,opts("GPU"));delegateUsed="GPU"}
+  catch(e){landmarker=await vision.PoseLandmarker.createFromOptions(files,opts("CPU"));delegateUsed="CPU"}
+  return landmarker;
+}
+
+function pressSrc(id){["srcCam","srcFile","srcDemo"].forEach(b=>$(b).setAttribute("aria-pressed",String(b===id)))}
+function stopAll(){cancelAnimationFrame(rafId);if(video.srcObject){video.srcObject.getTracks().forEach(t=>t.stop());video.srcObject=null}
+  video.pause();smoother=new Smoother();winFrames=[];lastVideoTime=-1;detectErr=null;personSeen=false;newCounter()}
+
+$("srcCam").onclick=async()=>{
+  stopAll();pressSrc("srcCam");source="cam";
+  try{await loadLandmarker()}catch(e){setStatus("The MediaPipe model could not load ("+(e.message||e)+"). Check your internet connection.");return}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=stream;await video.play();
+    setStatus("Stand side-on with your whole body in frame and start. Reps are counted automatically.");loop();
+  }catch(e){setStatus("The camera did not start: "+(e.message||e)+". Open Nabu through start.bat (localhost) and allow camera access.")}
+};
+$("srcFile").onclick=()=>$("fileIn").click();
+$("fileIn").onchange=async()=>{
+  const f=$("fileIn").files[0];if(!f)return;
+  stopAll();pressSrc("srcFile");source="file";
+  try{await loadLandmarker()}catch(e){setStatus("The MediaPipe model could not load: "+(e.message||e));return}
+  video.src=URL.createObjectURL(f);video.loop=false;video.playbackRate=+$("rateSel").value;
+  try{await video.play()}catch(e){}
+  setStatus("Analysing the video. Reps are counted automatically.");loop();
+};
+$("rateSel").onchange=()=>{video.playbackRate=+$("rateSel").value};
+$("srcDemo").onclick=()=>{stopAll();pressSrc("srcDemo");source="demo";demo={t0:performance.now()/1000,period:3.2};
+  setStatus("Demo: a synthetic skeleton doing the chosen exercise. Reps are counted automatically.");loop()};
+
+/* ---------- bucla principală ---------- */
+function loop(){
+  rafId=requestAnimationFrame(loop);
+  if(source==="demo"){
+    const t=performance.now()/1000-demo.t0,cyc=t/demo.period,p=0.5-0.5*Math.cos(2*Math.PI*cyc);
+    const q=$("demoQ").value==="good"?1:$("demoQ").value==="bad"?0:(Math.floor(cyc)%3===2?0:1);
+    const w=synthPose(exKey(),p,q);drawSynthetic(w);process(w,null,t);return;
+  }
+  if(!landmarker||video.readyState<2)return;
+  if(video.currentTime===lastVideoTime)return;lastVideoTime=video.currentTime;
+  const now=performance.now();let res;
+  try{res=landmarker.detectForVideo(video,now)}catch(e){detectErr=e.message||String(e);setStatus("Detection error: "+detectErr);return}
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const world=res.worldLandmarks&&res.worldLandmarks[0],norm=res.landmarks&&res.landmarks[0];
+  personSeen=!!world;
+  if(!world){setStatus("I can’t see anyone. Get your whole body in frame, lit from the front.");renderDiag();return}
+  drawNorm(norm);
+  const t=source==="file"?video.currentTime:now/1000;
+  process(world,norm,t);
+}
+
+function process(w,norm,t){
+  fpsT.push(performance.now());while(fpsT.length>30)fpsT.shift();
+  const vis=sideVisibility(norm,ex().keys);lastVis=vis;
+  if(Math.max(vis.L,vis.R)<0.3){const miss=norm?ex().keys.filter(i=>(norm[i].visibility??1)<0.5).map(i=>PART_NAMES[i]).filter(Boolean):[];
+    setStatus("The body parts this exercise needs aren’t visible"+(miss.length?": "+miss.slice(0,4).join(", "):"")+". Move the camera so it can see them.");renderDiag();return}
+  const side=chooseSide(vis);lastSide=side;
+  const a=smoother.push(jointAngles(w,ex().angles)); // doar unghiurile exercițiului
+  if($("autoDet").checked){winFrames.push(pickSide(jointAngles(w),side));if(winFrames.length>90)winFrames.shift()} // tot corpul, doar pentru recunoaștere; nu se salvează
+  if(!counter)newCounter();
+  const rep=counter.update(t,a,side);
+  const inf=counter.info,sg=ex().mode==="raise"?-1:1;hist.push({t,x:sg*inf.x,enter:sg*inf.enter,exit:sg*inf.exit,ready:inf.ready});while(hist.length&&t-hist[0].t>8)hist.shift();
+  $("angPill").textContent=ex().unit+": "+fmt(inf.s)+"°";
+  if($("autoDet").checked&&winFrames.length>=60&&winFrames.length%15===0)suggest();
+  if(rep){setReps.push(rep);renderReps();updateMetrics();
+    const tgt=+$("targetIn").value;
+    setStatus(rep.n>=tgt?`Target of ${tgt} reps reached. Press “Save set”.`:rep.good?`Rep ${rep.n}: good form.`:`Rep ${rep.n}: ${rep.checks.find(c=>!c.ok).t}.`)}
+  drawSpark();renderDiag();
+}
+function suggest(){
+  const d=detectExercise(winFrames.slice(-90)),box=$("detectBox");
+  if(d&&d!==exKey()){box.hidden=false;box.className="alert warn";box.innerHTML=`This looks like <b>${EXERCISES[d].name}</b>, not ${ex().name}. <button id="accDet">Switch exercise</button>`;
+    $("accDet").onclick=()=>{$("exSel").value=d;$("exSel").dispatchEvent(new Event("change"));box.hidden=true}}
+  else box.hidden=true;
+}
+
+/* ---------- diagnoză ---------- */
+function renderDiag(){
+  const fps=fpsT.length>1?Math.round((fpsT.length-1)*1000/(fpsT.at(-1)-fpsT[0])):0;
+  const inf=counter?counter.info:{};
+  const sideTxt={B:"both sides",L:"left side",R:"right side"}[lastSide];
+  const rows=[
+    ["Model",source==="demo"?"demo (no model)":landmarker?`MediaPipe Pose, ${delegateUsed}`:"not loaded"],
+    ["Person detected",source==="demo"?"yes (synthetic)":personSeen?"yes":"no"],
+    ["Visibility left / right",`${Math.round(lastVis.L*100)}% / ${Math.round(lastVis.R*100)}%`],
+    ["Side used",sideTxt],
+    ["Frames per second",fps||"—"],
+    ["Range of motion",inf.range!==undefined?`${fmt(inf.range)}° (at least ${ex().minRange}° to count)`:"—"],
+    ["State",inf.ready?(inf.state==="bottom"?"going down / at the bottom":"up, waiting for the descent"):"movement still too small"],
+    ["Normalised depth (0–1)",exKey()==="squat"&&Number.isFinite(inf.s)&&lastConv?Math.max(0,Math.min(1.2,new SquatCounter(lastConv.sursa.kneeMinDeg,lastConv.sursa.kneeMaxDeg).depth(inf.s))).toFixed(2):"—"],
+    ["Error",detectErr||"none"]];
+  $("diag").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td></tr>`).join("");
+}
+function drawSpark(){
+  const W=spark.width,H=spark.height;sctx.clearRect(0,0,W,H);
+  if(hist.length<2)return;
+  const xs=hist.flatMap(h=>[h.x,h.enter,h.exit]).filter(Number.isFinite);let lo=Math.min(...xs),hi=Math.max(...xs);if(hi-lo<20){const m=(hi+lo)/2;lo=m-10;hi=m+10}
+  const t0=hist.at(-1).t-8,X=t=>(t-t0)/8*W,Y=v=>H-6-(v-lo)/(hi-lo)*(H-12);
+  const cs=getComputedStyle(document.documentElement);
+  const line=(key,col,dash)=>{sctx.strokeStyle=col;sctx.setLineDash(dash);sctx.lineWidth=dash.length?1.2:2.2;sctx.beginPath();let st=false;
+    for(const h of hist){const v=h[key];if(!Number.isFinite(v)||(key!=="x"&&!h.ready)){st=false;continue}const px=X(h.t),py=Y(v);st?sctx.lineTo(px,py):sctx.moveTo(px,py);st=true}sctx.stroke();sctx.setLineDash([])};
+  line("exit",cs.getPropertyValue("--ok").trim(),[5,4]);line("enter",cs.getPropertyValue("--warn").trim(),[5,4]);line("x",cs.getPropertyValue("--accent").trim(),[]);
+  for(const r of setReps){if(r.tEnd>t0){sctx.fillStyle=cs.getPropertyValue("--ink").trim();sctx.beginPath();sctx.arc(X(r.tEnd),8,3.5,0,7);sctx.fill()}}
+}
+
+/* ---------- serie / sesiune ---------- */
+$("startSet").onclick=()=>{newCounter();setStatus("New set. Counting from zero.")};
+$("endSet").onclick=()=>{
+  if(!setReps.length){setStatus("No reps counted in this set yet.");return}
+  const load=Math.max(0,+$("loadIn").value||0);
+  const s={date:new Date().toISOString(),exercise:exKey(),name:ex().name,source,reps:setReps.length,good:setReps.filter(r=>r.good).length,
+    loadKg:load,volumeKg:setReps.length*load,avgRomDeg:Math.round(mean(setReps.map(r=>r.rom))),avgEccS:+mean(setReps.map(r=>r.ecc)).toFixed(2),coins:10,
+    issues:[...new Set(setReps.flatMap(r=>r.checks.filter(c=>!c.ok).map(c=>c.t.split(":")[0])))],
+    trackedParts:ex().keys.map(i=>PART_NAMES[i]).filter(Boolean),
+    repsDetail:setReps.map(r=>({n:r.n,good:r.good,romDeg:Math.round(r.rom),eccS:+r.ecc.toFixed(2),conS:+r.con.toFixed(2),side:r.side,
+      anglesAtBottom:Object.fromEntries(Object.entries(r.atMinS).filter(([k,v])=>Number.isFinite(v)).map(([k,v])=>[k,Math.round(v)])),
+      issues:r.checks.filter(c=>!c.ok).map(c=>c.t)}))};
+  session.push(s);try{localStorage.setItem(STORE,JSON.stringify(session))}catch(e){}
+  renderSession();setStatus(`Set saved: ${s.reps} reps, volume ${s.volumeKg} kg.`);newCounter();
+};
+function mean(a){const v=a.filter(Number.isFinite);return v.length?v.reduce((s,x)=>s+x,0)/v.length:NaN}
+function renderReps(){
+  const box=$("repList");$("repBig").textContent=setReps.length;
+  if(!setReps.length){box.innerHTML='<p class="small muted">Reps appear here, each with its form check.</p>';return}
+  box.innerHTML=setReps.slice().reverse().map(r=>`<div class="rep"><div class="h"><span>Rep ${r.n}</span><span class="${r.good?"":"muted"}">${r.good?"good form":"to fix"}</span></div>${r.checks.map(c=>`<div class="chk"><span class="dot ${c.ok?"ok":"warn"}"></span><span>${c.t}</span></div>`).join("")}</div>`).join("");
+}
+function updateMetrics(){
+  $("mReps").textContent=setReps.length;$("mGood").textContent=setReps.filter(r=>r.good).length;
+  const rom=mean(setReps.map(r=>r.rom)),ecc=mean(setReps.map(r=>r.ecc));
+  $("mRom").textContent=Number.isFinite(rom)?Math.round(rom)+"°":"—";$("mTempo").textContent=Number.isFinite(ecc)?ecc.toFixed(1)+" s":"—";
+  renderConv();
+}
+function renderSession(){
+  const tb=$("sessTable").querySelector("tbody");
+  tb.innerHTML=session.map(s=>`<tr><td>${s.name}</td><td class="num">${s.reps}</td><td class="num">${s.good}</td><td class="num">${s.loadKg}</td><td class="num">${s.volumeKg}</td><td class="num">+${s.coins}</td></tr>`).join("")||'<tr><td colspan="6" class="muted">No sets yet.</td></tr>';
+  const vol=session.reduce((a,s)=>a+s.volumeKg,0),coins=session.reduce((a,s)=>a+s.coins,0);
+  $("sessTot").textContent=`Total volume: ${vol} kg · Nabu coins: ${coins}`;
+  writeJson();
+}
+function writeJson(){$("json").value=JSON.stringify({astronaut:"A",sesiune:session,transpunere:lastConv},null,1)}
+
+/* ---------- transpunere între gravitații ---------- */
+const G_NAME={pamant:"Earth",marte:"Mars",luna:"Moon"};
+function gVal(which){const sel=$(which).value;return sel==="custom"?+$(which+"Custom").value:GRAV[sel]}
+function gLabel(which){const sel=$(which).value;return sel==="custom"?gVal(which)+" m/s²":G_NAME[sel]}
+function num(id,d){const v=+$(id).value;return Number.isFinite(v)?v:d}
+// Parametrii sursă: din seria curentă unde există măsurători, altfel din câmpuri / valori tipice.
+function convSource(){
+  const isSquat=exKey()==="squat",mins=setReps.map(r=>r.min).filter(Number.isFinite);
+  const measured=isSquat&&mins.length>0;
+  const kneeMin=measured?mean(mins):85,kneeMax=measured?mean(setReps.map(r=>r.min+r.rom)):175;
+  const dur=setReps.length?mean(setReps.map(r=>r.tEnd-r.tStart)):2.0;
+  const mass=Math.max(1,num("massIn",75)),load=Math.max(0,num("loadIn",0)),drop=Math.max(0,num("dropIn",0.45));
+  return {measured,counted:setReps.length>0,p:{kneeMinDeg:rnd(kneeMin,0),kneeMaxDeg:rnd(kneeMax,0),bodyMassKg:mass,externalLoadKg:load,
+    reps:setReps.length||Math.max(1,num("targetIn",8)),workPerRepJ:0,repDurationS:rnd(dur,2),jumpHeightM:Math.max(0,num("jumpIn",0.4)),walkSpeedMs:Math.max(0,num("walkIn",1.4)),dropM:drop}};
+}
+function renderConv(){
+  if(!$("gTable"))return;
+  $("gFromCustomF").hidden=$("gFrom").value!=="custom";$("gToCustomF").hidden=$("gTo").value!=="custom";
+  const gf=gVal("gFrom"),gt=gVal("gTo"),src=convSource(),p=src.p,tb=$("gTable").querySelector("tbody"),err=$("gErr");
+  $("gThFrom").textContent=gLabel("gFrom");$("gThTo").textContent=gLabel("gTo");
+  let q;
+  try{p.workPerRepJ=rnd(squatWork(p.bodyMassKg,p.externalLoadKg,p.dropM,gf),1);q=convertParams(p,gf,gt,keepLoad)}
+  catch(e){err.hidden=false;err.textContent=e.message;tb.innerHTML="";$("gK").textContent="";$("gApply").disabled=true;lastConv=null;writeJson();return}
+  err.hidden=true;$("gApply").disabled=false;
+  const k=q.k,f2=x=>x.toLocaleString("en-GB",{maximumFractionDigits:2});
+  $("gK").textContent=`k = ${f2(gf)} / ${f2(gt)} = ${k.toFixed(2)} · force per rep: ${Math.round((LIFTED*p.bodyMassKg+p.externalLoadKg)*gf)} N → ${q.forceN} N`;
+  const T={sure:'<span class="tag sure">SURE</span>',approx:'<span class="tag approx">APPROX</span>',est:'<span class="tag est">ESTIMATE</span>',same:'<span class="tag same">unchanged</span>'};
+  const repsTag=keepLoad&&!q.capped?T.sure:T.est;
+  const rows=[
+    ["Knee angle at the bottom",p.kneeMinDeg+"°",q.kneeMinDeg+"°","anatomy",T.same],
+    ["Knee angle at the top",p.kneeMaxDeg+"°",q.kneeMaxDeg+"°","anatomy",T.same],
+    ["Body mass",f2(p.bodyMassKg)+" kg",f2(q.bodyMassKg)+" kg","mass is the same everywhere",T.same],
+    ["Extra load",f2(p.externalLoadKg)+" kg",f2(q.externalLoadKg)+" kg",keepLoad?(q.capped?"body alone is already too heavy → 0 kg":"(0.88·m + L)·g equal"):"kept",keepLoad?T.sure:T.same],
+    ["Reps",f2(p.reps),f2(q.reps),keepLoad&&!q.capped?"1 : 1":keepLoad?"÷ k":"× k (same total work)",repsTag],
+    ["Work per rep",f2(p.workPerRepJ)+" J",f2(q.workPerRepJ)+" J",keepLoad&&!q.capped?"same force, same travel":"W = m·g·h → ÷ k",T.sure],
+    ["Rep duration",f2(p.repDurationS)+" s",f2(q.repDurationS)+" s","× √k (Froude)",T.approx],
+    ["Jump height",f2(p.jumpHeightM)+" m",f2(q.jumpHeightM)+" m","× k (h = v²/2g)",T.approx],
+    ["Walking speed",f2(p.walkSpeedMs)+" m/s",f2(q.walkSpeedMs)+" m/s","÷ √k (Froude)",T.approx]];
+  tb.innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num${r[1]!==r[2]?" chg":""}">${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join("");
+  const notes=[];
+  notes.push(src.counted?"Reps and duration come from the current set.":"No reps counted yet: using the target reps and a typical 2 s duration.");
+  notes.push(src.measured?"Knee angles are the measured ones.":"Knee angles are typical values (85° / 175°); they are measured during squats.");
+  if(exKey()!=="squat")notes.push("The force model (88% of body mass lifted) is built for squats; for "+ex().name.toLowerCase()+" the values are indicative.");
+  if(q.capped)notes.push("Towards a higher gravity the body alone already exceeds the source force, so reps are reduced.");
+  $("gNote").textContent=notes.join(" ");
+  lastConv={din:gLabel("gFrom"),in:gLabel("gTo"),gSursa:gf,gTinta:gt,k:+k.toFixed(3),mod:keepLoad?"aceeasi_forta":"aceeasi_sarcina",exercitiu:exKey(),sursa:p,tinta:q};
+  writeJson();
+}
+["gFrom","gTo","gFromCustom","gToCustom","massIn","dropIn","jumpIn","walkIn","loadIn","targetIn"].forEach(id=>$(id).addEventListener("input",renderConv));
+$("exSel").addEventListener("change",renderConv);
+function setMode(keep){keepLoad=keep;$("modeForce").setAttribute("aria-pressed",String(keep));$("modeWork").setAttribute("aria-pressed",String(!keep));renderConv()}
+$("modeForce").onclick=()=>setMode(true);$("modeWork").onclick=()=>setMode(false);
+function swapG(){const a=$("gFrom").value,ca=$("gFromCustom").value;$("gFrom").value=$("gTo").value;$("gTo").value=a;$("gFromCustom").value=$("gToCustom").value;$("gToCustom").value=ca}
+$("gSwap").onclick=()=>{swapG();renderConv()};
+$("gApply").onclick=()=>{if(!lastConv)return;const want=Math.round(lastConv.tinta.externalLoadKg),v=Math.min(272,want);$("loadIn").value=v;swapG();
+  setStatus(`ARED load is now ${v} kg, the value for ${gLabel("gFrom")}`+(want>272?` (the exact equivalent would be ${want} kg, above the 272 kg ARED limit)`:"")+". The conversion direction was swapped.");renderConv()};
+$("copyJson").onclick=async()=>{try{await navigator.clipboard.writeText($("json").value);$("copyMsg").textContent="Copied."}catch(e){$("json").select();$("copyMsg").textContent="Select and copy it manually."}};
+
+/* ---------- desen ---------- */
+const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[29,31],[27,31],[28,30],[30,32],[28,32]];
+function drawSkeleton(pts,vis){
+  const keys=new Set(ex().keys),ctxOn=$("showAll").checked;ctx.lineWidth=5;ctx.lineCap="round";
+  for(const [a,b] of BONES){const rel=keys.has(a)&&keys.has(b);if(!rel&&!ctxOn)continue;
+    const faded=vis&&((vis[a]??1)<0.5||(vis[b]??1)<0.5);
+    ctx.strokeStyle=!rel?"rgba(230,235,245,.18)":faded?"rgba(240,122,58,.35)":"#F07A3A";
+    ctx.beginPath();ctx.moveTo(pts[a][0],pts[a][1]);ctx.lineTo(pts[b][0],pts[b][1]);ctx.stroke()}
+  for(const i of keys){const faded=vis&&(vis[i]??1)<0.5;ctx.fillStyle=faded?"rgba(240,122,58,.35)":"#F07A3A";ctx.beginPath();ctx.arc(pts[i][0],pts[i][1],7,0,7);ctx.fill()}
+}
+function drawNorm(n){if(!n)return;drawSkeleton(n.map(l=>[l.x*canvas.width,l.y*canvas.height]),n.map(l=>l.visibility))}
+function drawSynthetic(w){
+  ctx.fillStyle="#0B1020";ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle="rgba(154,166,192,.35)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,canvas.height*0.86);ctx.lineTo(canvas.width,canvas.height*0.86);ctx.stroke();
+  const sc=360,ox=canvas.width*0.5,oy=canvas.height*0.86;
+  const pts=w.map(l=>[ox+l.x*sc+l.z*0.35*sc,oy-l.y*sc-l.z*0.15*sc]);
+  if(exKey()==="bench"){ctx.fillStyle="rgba(154,166,192,.35)";ctx.fillRect(ox-0.65*sc,oy-0.42*sc,0.85*sc,16)}
+  drawSkeleton(pts,null);
+  ctx.fillStyle="rgba(230,235,245,.7)";ctx.font="14px system-ui";ctx.fillText("Synthetic demo · generated 3D skeleton, processed like a real camera",16,canvas.height-62);
+}
+
+renderSession();renderDiag();renderParts();$("exPill").textContent=ex().name;newCounter();$("showAll").onchange=()=>{if(source==="demo")return};
+drawSynthetic(synthPose("squat",0,1));
+
+/* ---------- Nabu bridge: coins for saved sets, size reporting ---------- */
+(function(){
+  const embedded=window.parent!==window; if(!embedded)return;
+  document.body.classList.add("embedded");
+  const post=(m)=>{try{window.parent.postMessage(Object.assign({src:"ared"},m),location.origin)}catch(e){}};
+  const ro=new ResizeObserver(()=>post({type:"size",h:document.documentElement.scrollHeight})); ro.observe(document.body);
+  const save=$("endSet").onclick;
+  $("endSet").onclick=()=>{const before=session.length;save();if(session.length>before){const s=session.at(-1);
+    post({type:"set",exercise:s.exercise,name:s.name,reps:s.reps,good:s.good,loadKg:s.loadKg,volumeKg:s.volumeKg,target:+$("targetIn").value||8,source:s.source})}};
+  window.addEventListener("message",(e)=>{if(e.origin!==location.origin)return;const d=e.data||{};if(d.src!=="nabu")return;
+    if(d.type==="stop"){try{stopAll();pressSrc("")}catch(_){}}
+    if(d.type==="coins"){setStatus(d.text)}});
+})();
+</script>
+</body>
+</html>
