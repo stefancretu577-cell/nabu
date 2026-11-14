@@ -624,7 +624,7 @@ function renderRoom(arrive) {
   const r = roomById(currentRoom);
   $("#room-name").textContent = r.name;
   const frame = $("#room"), scene = $("#room .scene");
-  frame.classList.toggle("tvroom", !!r.tv); frame.classList.toggle("cmdroom", !!r.command); scene.classList.toggle("still", !!r.noDrift);
+  frame.classList.toggle("tvroom", !!r.tv); frame.classList.toggle("cmdroom", !!r.command); frame.classList.remove("lapzoom"); scene.classList.toggle("still", !!r.noDrift);
   const img = $("#room-img"); img.src = imgUrl(r); img.alt = "Inside the " + r.name;
   img.style.filter = `brightness(${wellness().brightness})`;
   const light = S.light[r.id] || "warm";
@@ -695,6 +695,7 @@ function slideRooms(to, d) {
 async function leaveToBase() {
   if (moving) return;
   if (currentRoom === "command" && !reducedMotion()) {
+    await unzoomLaptop();
     const ok = await playClip({ clip: "console-out", fromFrame: $("#room"), show: () => { go("base"); }, toFrameSel: "#base", rate: 1 });
     if (ok) return;
   }
@@ -734,6 +735,7 @@ async function consoleSwap(id) {
     if (ok) return;
   }
   if (id !== "command" && currentRoom === "command" && !reducedMotion()) {
+    await unzoomLaptop();
     const ok = await playClip({ clip: id === "living" ? "door-command-living" : "console-out", fromFrame: $("#room"), show: () => go("room", id), toFrameSel: "#room", rate: 1 });
     if (ok) return;
   }
@@ -1102,6 +1104,14 @@ async function bootLaptop() {
   await ready; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   await new Promise((r) => setTimeout(r, 180));
   scr?.classList.remove("boot"); scr?.classList.add("on");
+  // then lean in: the laptop screen comes up to fill the frame so the app is easy to read
+  if (!reducedMotion()) await new Promise((r) => setTimeout(r, 250));
+  if ($("#tv-main") === f) $("#room").classList.add("lapzoom");
+}
+// before leaving, sit back so the closing clip starts from the same picture
+async function unzoomLaptop() {
+  const room = $("#room"); if (!room.classList.contains("lapzoom")) return;
+  room.classList.remove("lapzoom"); if (!reducedMotion()) await new Promise((r) => setTimeout(r, 520));
 }
 function fitHealth() { const h = $("#hs-host"), hs = $("#hs"); if (h && hs) hs.style.setProperty("--s", (h.clientWidth / HS_W).toFixed(4));
   const th = $("#tv-host"), tf = $("#tv-main"); if (th && tf) { const k = th.clientWidth / TV_APP_W; tf.style.width = TV_APP_W + "px"; tf.style.height = Math.ceil(th.clientHeight / k) + "px"; tf.style.transform = `scale(${k})`; }
@@ -1210,7 +1220,7 @@ function openHealthApp() {
 }
 
 /* ── the health twin: a holographic skeleton with the body systems around it (all values are a demo model) ── */
-const HS_W = 1240, DY_W = 400, TV_APP_W = 1120;
+const HS_W = 1240, DY_W = 400, TV_APP_W = 980;
 const HAZ = { grav: "Altered gravity", rad: "Space radiation", iso: "Isolation & confinement", far: "Distance from Earth", env: "Hostile closed environment" };
 const latestRow = (type, name) => { const a = [...S.analyses].filter((x) => x.type === type).sort((x, y) => y.day - x.day)[0]; return a?.rows.find((r) => r.n === name); };
 function exFactor(day) { const days = new Set(S.exerciseLog.filter((l) => l.day <= day).map((l) => l.day)).size; return clamp(0.55 + 0.45 * days / Math.max(1, day - 1), 0, 1); }

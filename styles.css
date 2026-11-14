@@ -1663,3 +1663,15 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .link-code i { width: 7px; height: 7px; border-radius: 50%; background: #3fc7b5; box-shadow: 0 0 8px #3fc7b5; }
 .link-code b { font: 700 12px var(--font-mono, monospace); letter-spacing: .12em; color: #fff; }
 .link-code:hover { background: rgba(63,199,181,.2); }
+/* ═════════ laptop: lean in so the screen fills the frame ═════════
+   screen centre (49.98%, 42.56%) moves to the frame centre and grows 1.26x: the app reads like a real laptop screen. */
+.room.cmdroom .scene { transform-origin: 0 0; transition: transform .95s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
+.room.cmdroom.lapzoom .scene { transform: translate(-12.97%, -3.63%) scale(1.26); }
+.room.cmdroom.lapzoom .kb-hint { opacity: 0; }
+/* compact controls on the laptop bezel, softly rounded (Watermelon-style pills) */
+.room.cmdroom .console-leave, .room.cmdroom .exit-btn { transition: transform .35s cubic-bezier(.34, 1.56, .64, 1), background .2s, top .5s, bottom .5s, padding .3s; }
+.room.cmdroom.lapzoom .console-leave, .room.cmdroom.lapzoom .exit-btn { top: 8px; bottom: auto; padding: 4px 12px 4px 4px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.room.cmdroom.lapzoom .console-leave b, .room.cmdroom.lapzoom .exit-btn .exit-ic { width: 22px; height: 22px; font-size: 15px; }
+.room.cmdroom.lapzoom .console-leave small, .room.cmdroom.lapzoom .exit-btn small { display: none; }
+.room.cmdroom.lapzoom .console-leave span, .room.cmdroom.lapzoom .exit-btn span { font-size: 12.5px; }
+.room.cmdroom .console-leave:active, .room.cmdroom .exit-btn:active { transform: scale(.95); }
