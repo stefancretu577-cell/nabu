@@ -298,7 +298,7 @@ function warmClip(name) {
 }
 // Plays a Higgsfield clip over the screen. Its first frame matches the current view and its last frame matches
 // the next one, so the clip appears without a fade from black and the next view is swapped in underneath before it fades out.
-async function cinematic(clip, title, frameSel, point, onSwitch, { rate = 1.15 } = {}) {
+async function cinematic(clip, title, frameSel, point, onSwitch, { rate = 1 } = {}) {
   if (cineBusy) return; if (reducedMotion()) { onSwitch(); return; }
   cineBusy = true;
   const cine = $("#cine"), v = $("#cine-v"); let done = false, timer;
@@ -425,7 +425,7 @@ const hatchHole = (R) => ({ x: R.left + R.width * 0.5, y: R.top + R.height * 0.4
    dissolves into it. If a clip is missing, the portal animation above is used instead. */
 // A few clips are kept decoded and parked on their first frame, so a click starts them instantly.
 const primed = new Map();
-async function primeClip(name, trimIn = 0.45) {
+async function primeClip(name, trimIn = 0.02) {
   if (reducedMotion() || primed.has(name)) return;
   primed.set(name, null);
   // never load a decoder while something is moving: wait for a quiet moment
@@ -436,10 +436,10 @@ async function primeClip(name, trimIn = 0.45) {
   await new Promise((r) => (v.readyState >= 2 ? r() : (v.onloadeddata = r)));
   await new Promise((r) => { v.onseeked = r; v.currentTime = trimIn; });
   primed.set(name, v);
-  // keep at most two decoded clips: each 2K decoder costs a lot of memory
+  // keep at most two decoded clips parked
   while (primed.size > 2) { const [k, old] = primed.entries().next().value; primed.delete(k); if (old) { old.removeAttribute("src"); old.load(); } }
 }
-async function playClip({ clip, fromFrame, show, toFrameSel, rate = 3.6, trimIn = 0.45, trimOut = 0.9, title = "" }) {
+async function playClip({ clip, fromFrame, show, toFrameSel, rate = 1, trimIn = 0.02, trimOut = 0.04, title = "" }) {
   if (moving) return false;
   const src = reducedMotion() ? null : await warmClip(clip);
   if (!src) return false;
@@ -467,8 +467,12 @@ async function playClip({ clip, fromFrame, show, toFrameSel, rate = 3.6, trimIn 
   const decoding = Promise.all([...to.querySelectorAll("img")].map((i) => (i.decode ? i.decode().catch(() => {}) : null)));
   const r1 = rectOf(to);
   const playMs = Math.max(400, ((v.duration - trimIn - trimOut) / rate) * 1000);
-  if (r1.left !== r0.left || r1.top !== r0.top || r1.width !== r0.width || r1.height !== r0.height)
-    box.animate([r0, r1], { duration: playMs * 0.85, easing: E_IO, fill: "forwards" });
+  if (r1.left !== r0.left || r1.top !== r0.top || r1.width !== r0.width || r1.height !== r0.height) {
+    const px = (v) => parseFloat(v);
+    const dx = px(r0.left) - px(r1.left), dy = px(r0.top) - px(r1.top), sx = px(r0.width) / px(r1.width), sy = px(r0.height) / px(r1.height);
+    Object.assign(box.style, r1, { transformOrigin: "0 0" });
+    box.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transform: "none" }], { duration: playMs * 0.85, easing: E_IO, fill: "forwards" });
+  }
   if (title) setTimeout(() => box.classList.add("titled"), 250);
   await new Promise((res) => {
     let done = false; const end = () => { if (done) return; done = true; v.ontimeupdate = v.onended = null; res(); };
@@ -492,7 +496,7 @@ async function enterBase() {
     { duration: reducedMotion() ? 0 : 420, easing: E_IO, fill: "forwards" });
   await zoom.finished;
   const reset = () => { zoom.cancel(); scene.style.animation = ""; scene.style.transformOrigin = ""; map.classList.remove("zooming"); };
-  const ok = await playClip({ clip: "planet-base", fromFrame: map, rate: 3.6, title: `<div class="ey">Landing · ${esc(ME.ship)}</div><div class="nm">${esc(ME.base)}</div>`,
+  const ok = await playClip({ clip: "planet-base", fromFrame: map, title: `<div class="ey">Landing · ${esc(ME.ship)}</div><div class="nm">${esc(ME.base)}</div>`,
     show: () => { go("base"); $("#base-markers").style.opacity = 0; }, toFrameSel: "#base" });
   reset();
   if (!ok) { go("base"); }
@@ -509,7 +513,7 @@ async function enterRoom(id) {
     // down through the skylight of the hub, then the laptop is set on the desk and opens
     if (!reducedMotion()) { const sc = $("#base .scene"); $("#base-markers").style.opacity = 0; sc.style.animation = "none"; sc.style.transformOrigin = `${m.x}% ${m.y}%`;
       await sc.animate([{ transform: "scale(1)", filter: "brightness(1)" }, { transform: "scale(4.5)", filter: "brightness(1.5)" }], { duration: 520, easing: "cubic-bezier(.55,0,.8,.3)", fill: "forwards" }).finished;
-      const ok = await playClip({ clip: "console-in", fromFrame: $("#base"), rate: 1, trimIn: 0.05, trimOut: 0.08, title, show: () => { go("room", "command"); sc.getAnimations().forEach((a) => a.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; }, toFrameSel: "#room" });
+      const ok = await playClip({ clip: "console-in", fromFrame: $("#base"), rate: 1, title, show: () => { go("room", "command"); sc.getAnimations().forEach((a) => a.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; }, toFrameSel: "#room" });
       if (ok) return; sc.getAnimations().forEach((a) => a.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; }
   }
   if (reducedMotion()) { go("room", r.id); return; }
@@ -671,7 +675,7 @@ async function hubStep(d) {
   if (moving) return;
   const i = HUB.indexOf(currentRoom); if (i < 0) return;
   const to = HUB[(i + d + HUB.length) % HUB.length];
-  const ok = await playClip({ clip: `door-${currentRoom}-${to}`, fromFrame: $("#room"), show: () => go("room", to), toFrameSel: "#room", rate: 3.6 });
+  const ok = await playClip({ clip: `door-${currentRoom}-${to}`, fromFrame: $("#room"), show: () => go("room", to), toFrameSel: "#room" });
   if (!ok) slideRooms(to, d);
 }
 // fallback when a door clip is missing: a quick sideways move, no blur
@@ -684,7 +688,7 @@ function slideRooms(to, d) {
 async function leaveToBase() {
   if (moving) return;
   if (currentRoom === "command" && !reducedMotion()) {
-    const ok = await playClip({ clip: "console-out", fromFrame: $("#room"), show: () => { go("base"); }, toFrameSel: "#base", rate: 1, trimIn: 0.05, trimOut: 0.08 });
+    const ok = await playClip({ clip: "console-out", fromFrame: $("#room"), show: () => { go("base"); }, toFrameSel: "#base", rate: 1 });
     if (ok) return;
   }
   const m = modById(roomById(currentRoom).module);
@@ -719,11 +723,11 @@ async function jumpTo(id) {
 async function consoleSwap(id) {
   if (moving) return;
   if (id === "command" && !reducedMotion()) {
-    const ok = await playClip({ clip: currentRoom === "living" ? "door-living-command" : "console-in", fromFrame: $("#room"), show: () => go("room", "command"), toFrameSel: "#room", rate: 1, trimIn: 0.05, trimOut: 0.08 });
+    const ok = await playClip({ clip: currentRoom === "living" ? "door-living-command" : "console-in", fromFrame: $("#room"), show: () => go("room", "command"), toFrameSel: "#room", rate: 1 });
     if (ok) return;
   }
   if (id !== "command" && currentRoom === "command" && !reducedMotion()) {
-    const ok = await playClip({ clip: id === "living" ? "door-command-living" : "console-out", fromFrame: $("#room"), show: () => go("room", id), toFrameSel: "#room", rate: 1, trimIn: 0.05, trimOut: 0.08 });
+    const ok = await playClip({ clip: id === "living" ? "door-command-living" : "console-out", fromFrame: $("#room"), show: () => go("room", id), toFrameSel: "#room", rate: 1 });
     if (ok) return;
   }
   moving = true; const room = $("#room");
@@ -771,7 +775,7 @@ async function exitToCorridor(side = "right", focus, fast = false) {
   const target = focus || ROOMS[(i + (side === "left" ? -1 : 1) + ROOMS.length) % ROOMS.length].id;
   const from = currentRoom;
   const toTube = () => { corrFrom = from; go("corridor", null, from, true); };
-  const ok = await playClip({ clip: "exit-" + from, fromFrame: $("#room"), show: toTube, toFrameSel: "#corr", rate: fast ? 4 : 3.6 });
+  const ok = await playClip({ clip: "exit-" + from, fromFrame: $("#room"), show: toTube, toFrameSel: "#corr", rate: fast ? 1.15 : 1 });
   if (!ok) await closePortal({ fromFrame: $("#room"), show: toTube, toFrameSel: "#corr", holeOf: hatchHole, dur: 750 });
   const k = ROOMS.findIndex((r) => r.id === target);
   if (k >= 0 && k !== corrIdx) await corrGo(k);
@@ -844,7 +848,7 @@ async function openHatch(fast = false) {
   if (corrBusy || moving) return; const r = ROOMS[corrIdx];
   if (destState(r) !== "open") return;
   corrBusy = true; $("#corr").classList.add("opening");
-  const ok = await playClip({ clip: "hatch-" + r.id, fromFrame: $("#corr"), show: () => go("room", r.id), toFrameSel: "#room", rate: fast ? 4 : 3.6,
+  const ok = await playClip({ clip: "hatch-" + r.id, fromFrame: $("#corr"), show: () => go("room", r.id), toFrameSel: "#room", rate: fast ? 1.15 : 1,
     title: `<div class="ey">Hatch ${corrIdx + 1} · ${esc(modById(r.module).name)}</div><div class="nm">${esc(r.name)}</div>` });
   if (!ok) await openPortal({ fromFrame: $("#corr"), hole: hatchHole($("#corr").getBoundingClientRect()), show: () => go("room", r.id), toFrameSel: "#room", dur: 950 });
   corrBusy = false; $("#corr").classList.remove("opening");
@@ -1056,12 +1060,11 @@ function renderWall(r, refresh) {
   box.hidden = false;
   if (refresh && box.querySelector("#tv-main")) { dailyUpdate(); return; }
   box.innerHTML = `<div class="tv-host laptop" id="tv-host" style="${pos(CMD.screen)}">
-      <div class="tv-screen boot" id="tv-screen"><iframe id="tv-main" title="Nabu Health" src="health/index.html#${tvChapter}"></iframe></div>
+      <div class="tv-screen boot" id="tv-screen"><iframe id="tv-main" title="Nabu Health" loading="eager"></iframe></div>
       <div class="tv-osd" id="tv-osd2"></div><i class="tv-glass"></i></div>
     <div class="kb-hint lap" id="kb-hint"><b>← →</b> chapters · <b>↑ ↓</b> scroll · or use the mouse on the screen</div>
     <div class="kb3" id="kb3" hidden></div>`;
-  fitHealth();
-  setTimeout(() => $("#tv-screen")?.classList.remove("boot"), 1600);
+  fitHealth(); bootLaptop();
 }
 function bindWall(box) {
   $$("[data-wtask]", box).forEach((cb) => (cb.onchange = () => {
@@ -1082,6 +1085,17 @@ function setScreenZoom(on) {
   const h = $("#kb-hint"); if (h) h.innerHTML = `<b>← →</b> chapters · <b>↑ ↓</b> scroll · <b>Enter</b> ${on ? "step back" : "look closer"} · or just use the mouse on the screen`;
 }
 new ResizeObserver(() => fitHealth()).observe($("#room"));
+// The app starts after the arrival animation ends (the laptop screen is white at that moment), and only appears once it has drawn.
+async function bootLaptop() {
+  const f = $("#tv-main"), scr = $("#tv-screen"); if (!f) return;
+  while (moving) await new Promise((r) => setTimeout(r, 60));
+  if ($("#tv-main") !== f) return;
+  const ready = new Promise((r) => { f.onload = r; setTimeout(r, 6000); });
+  f.src = `health/index.html#${tvChapter}`;
+  await ready; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise((r) => setTimeout(r, 180));
+  scr?.classList.remove("boot"); scr?.classList.add("on");
+}
 function fitHealth() { const h = $("#hs-host"), hs = $("#hs"); if (h && hs) hs.style.setProperty("--s", (h.clientWidth / HS_W).toFixed(4));
   const th = $("#tv-host"), tf = $("#tv-main"); if (th && tf) { const k = th.clientWidth / TV_APP_W; tf.style.width = TV_APP_W + "px"; tf.style.height = Math.ceil(th.clientHeight / k) + "px"; tf.style.transform = `scale(${k})`; }
   const dh = $("#dy-host"), dy = $("#dy"); if (dh && dy) dy.style.setProperty("--s", (dh.clientWidth / DY_W).toFixed(4)); }
