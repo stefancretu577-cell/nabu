@@ -210,7 +210,13 @@ function freshState() {
 function newDaily(day) { return { day, norma: {}, normaBonus: false, got: {}, exerciseCoins: 0, readCoins: 0, goodSets: 0 }; }
 function load() { try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch {} return null; }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
-let S = load() || freshState();
+const TEST_MODE = new URLSearchParams(location.search).has("test");
+function testState() {
+  const s = freshState(); s.day = 30; s.coins = 2500; s.test = true;
+  MODULES.forEach((m) => (s.built[m.id] = true));
+  return s;
+}
+let S = TEST_MODE ? (() => { const old = load(); return old && old.test ? old : testState(); })() : (load() || freshState());
 // older saves: drop the removed trading data and any decor whose item no longer exists
 delete S.token; delete S.others; delete S.podium;
 for (const k in S.decor) S.decor[k] = (S.decor[k] || []).filter((d) => ITEMS[d.item]).map((d) => { if (d.r != null) { d.a = [0, 1, 7, 4][d.r] || 0; delete d.r; } return d; });
@@ -2497,13 +2503,38 @@ setInterval(checkInbox, 5000);
     astronautOn = true; gate.hidden = true; heartbeat(); setTimeout(bgStart, 900); setTimeout(checkInbox, 2500);
   };
   if (new URLSearchParams(location.search).get("as") === "astronaut") { enterAstronaut(); return; }
+  // test mode skips the gate and the intro and lands on the base map, with a small panel of shortcuts
+  function enterTest() {
+    save(); enterAstronaut(); const intro = $("#intro"); if (intro) intro.hidden = true;
+    testBar(); setTimeout(() => { if (!moving) go("base"); }, 400);
+  }
   const pick = (card, after, ms) => { if (gate.classList.contains("leaving")) return; card.classList.add("picked"); gate.classList.add("leaving");
     setTimeout(() => gate.classList.add("out"), reducedMotion() ? 0 : 380); setTimeout(after, reducedMotion() ? 0 : ms); };
+  if (TEST_MODE) { enterTest(); return; }
   $("#gate-astro").onclick = (e) => pick(e.currentTarget, enterAstronaut, 850);
+  $("#gate-test").onclick = () => { location.href = location.pathname + "?test"; };
   $("#gate-psy").onclick = (e) => pick(e.currentTarget, () => { location.href = "doctor.html"; }, 650);
   $("#gate-both").onclick = () => { const w = window.open("doctor.html", "nabu-psy", "width=1440,height=900"); if (!w) toast("Allow pop-ups to open the console next to Nabu."); pick($("#gate-astro"), enterAstronaut, 850); };
   addEventListener("keydown", (e) => { if (!gate.hidden && !gate.classList.contains("leaving") && (e.key === "1" || e.key === "2")) $(e.key === "1" ? "#gate-astro" : "#gate-psy").click(); });
 })();
+
+function testBar() {
+  if ($("#testbar")) return;
+  const b = document.createElement("div"); b.id = "testbar"; b.className = "testbar";
+  b.innerHTML = `<span class="tb-tag">Test mode</span>
+    <button data-t="coins">+500 coins</button><button data-t="day">Next day</button><button data-t="week">+7 days</button>
+    <button data-t="psy">Psychologist view ↗</button><button data-t="reset">Reset test</button><button data-t="exit" title="Leave test mode">✕</button>`;
+  document.body.append(b);
+  b.onclick = (e) => {
+    const t = e.target.closest("button")?.dataset.t; if (!t) return;
+    if (t === "coins") { S.coins += 500; save(); renderHUD(); toast("+500 coins"); }
+    if (t === "day") nextDay();
+    if (t === "week") { for (let i = 0; i < 7; i++) nextDay(true); renderHUD(); toast(`Day ${S.day}`); }
+    if (t === "psy") window.open("doctor.html", "nabu-psy", "width=1440,height=900");
+    if (t === "reset") { localStorage.removeItem(KEY); location.reload(); }
+    if (t === "exit") { localStorage.removeItem(KEY); location.href = location.pathname; }
+  };
+}
 
 /* ───────────────────────── wiring ───────────────────────── */
 $("#brand").onclick = () => { if (!$("#panel").hidden) closePanel(); go("planet"); arriveAnim(); };
