@@ -1658,3 +1658,8 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .testbar button:hover { background: rgba(63,199,181,.22); border-color: rgba(63,199,181,.5); }
 .testbar { top: 66px; bottom: auto; left: auto; right: 16px; transform: none; padding: 4px 6px; gap: 4px; }
 .testbar button { padding: 5px 9px; font-size: 11.5px; }
+/* link code for the psychologist (cross-device live link) */
+.link-code { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(63,199,181,.45); background: rgba(63,199,181,.1); color: #bfeee6; font: 600 11px var(--font-body); cursor: pointer; margin-right: 8px; }
+.link-code i { width: 7px; height: 7px; border-radius: 50%; background: #3fc7b5; box-shadow: 0 0 8px #3fc7b5; }
+.link-code b { font: 700 12px var(--font-mono, monospace); letter-spacing: .12em; color: #fff; }
+.link-code:hover { background: rgba(63,199,181,.2); }

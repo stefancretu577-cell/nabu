@@ -37,6 +37,7 @@
       <span id="hud-coins-val">0</span>
       <span class="hud-coins-plus">+</span>
     </button>
+    <button class="link-code" id="link-code" hidden title="Give this code to the psychologist to follow you live from any device"><i></i><span>Link</span><b id="link-code-v"></b></button>
     <span class="cam-dot" id="cam-dot" hidden title="The camera measures fatigue in the background (numbers only, no images)"><i></i>camera</span>
     <div class="hud-sim">
       <button class="ghost" id="btn-next-day" title="Simulate one day passing (demo)">Next day ▸</button>
@@ -225,7 +226,8 @@
     <button class="cine-skip" id="cine-skip">Skip ▸</button>
   </div>
 
-  <script>window.NABU_EMBED = true;</script>
+  <script>window.NABU_EMBED = true; window.NABU_SIDE = "a";</script>
+  <script src="sync.js"></script>
   <script src="monitor.js"></script>
   <script type="module" src="app.js"></script>
 </body>

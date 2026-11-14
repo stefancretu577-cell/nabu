@@ -2501,7 +2501,7 @@ setInterval(checkInbox, 5000);
 (() => {
   const gate = $("#gate"); if (!gate) return;
   const enterAstronaut = () => {
-    astronautOn = true; gate.hidden = true; heartbeat(); setTimeout(bgStart, 900); setTimeout(checkInbox, 2500);
+    astronautOn = true; gate.hidden = true; heartbeat(); setTimeout(bgStart, 900); setTimeout(checkInbox, 2500); showLinkCode();
   };
   if (new URLSearchParams(location.search).get("as") === "astronaut") { enterAstronaut(); return; }
   // test mode skips the gate and the intro and lands on the base map, with a small panel of shortcuts
@@ -2519,6 +2519,14 @@ setInterval(checkInbox, 5000);
   addEventListener("keydown", (e) => { if (!gate.hidden && !gate.classList.contains("leaving") && (e.key === "1" || e.key === "2")) $(e.key === "1" ? "#gate-astro" : "#gate-psy").click(); });
 })();
 
+// The link code the psychologist types on their console to follow this astronaut live from another device.
+function showLinkCode() {
+  const b = $("#link-code"); if (!b || !window.NABU_SYNC) return;
+  const upd = () => { $("#link-code-v").textContent = NABU_SYNC.room; b.hidden = !NABU_SYNC.on; };
+  upd(); addEventListener("nabu:sync", upd);
+  b.onclick = () => { try { navigator.clipboard.writeText(NABU_SYNC.room).catch(() => {}); } catch {}
+    toast(`Link code ${NABU_SYNC.room} copied. On the psychologist's console, type it in “Link code”.`); };
+}
 function testBar() {
   if ($("#testbar")) return;
   const b = document.createElement("div"); b.id = "testbar"; b.className = "testbar";

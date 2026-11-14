@@ -39,6 +39,9 @@ header > * { white-space: nowrap; }
 .switch, .freeze { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bd2); background: var(--s1); cursor: pointer; font-size: 13px; color: var(--fg2); display: inline-flex; align-items: center; gap: 8px; }
 .switch:hover, .freeze:hover { background: var(--s2); color: var(--fg); }
 .freeze i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); } .freeze.paused i { background: var(--amber); }
+.linkbox { height: 34px; display: inline-flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-radius: 8px; border: 1px solid var(--bd2); background: var(--s1); font-size: 12px; color: var(--fg2); }
+.linkbox input { width: 74px; height: 24px; border: 1px solid var(--bd2); border-radius: 6px; background: var(--bg); color: var(--fg); font: 700 13px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; text-align: center; }
+.linkbox i { width: 7px; height: 7px; border-radius: 50%; background: var(--bd2); } .linkbox i.ok { background: var(--teal); box-shadow: 0 0 8px var(--teal); } .linkbox i.wait { background: var(--amber); }
 .freeze.paused { border-color: rgba(214,164,70,.5); color: var(--fg); }
 .freeze b { padding: 1px 7px; border-radius: 6px; background: var(--amber); color: #241a05; font: 600 11px var(--fm); }
 .updated { font: 400 12px var(--fb); color: var(--mut); }
@@ -187,6 +190,7 @@ th { color: var(--mut); font: 500 12px var(--fb); } td.n { font-family: var(--fm
   <div class="hstat"><span>Mission day <b id="h-day">1</b> / 180</span><span>Light delay <b id="h-delay">–</b></span></div>
   <div class="presence" id="presence"></div>
   <div class="me"><span class="av" style="--ax:3;--ay:3"></span><span><b>Dr. Irina Matei</b><small>Cognitive psychologist</small></span></div>
+  <label class="linkbox" title="The link code shown at the top of the astronaut's Nabu"><span>Link code</span><input id="room" maxlength="8" spellcheck="false" autocomplete="off" placeholder="—"><i id="room-st"></i></label>
   <button class="freeze" id="freeze" title="Pause updates while you read; nothing is lost"><i></i><span>Live</span></button>
   <button class="switch" id="switch">Switch account</button>
 </header>
@@ -206,13 +210,18 @@ th { color: var(--mut); font: 500 12px var(--fb); } td.n { font-family: var(--fm
       <div class="row" style="margin-top:8px"><button class="btn vi" id="note-save">Save note to history</button></div></div>
   </div>
 </div>
+<script>window.NABU_SIDE = "d";</script>
+<script src="sync.js"></script>
 <script>
 /* The psychologist's side of Nabu. Live data comes from the astronaut's account (same browser in this prototype):
    "nabu.en.v2" (mission data), "nabu.live" (heartbeat), "nabu.inbox"/"nabu.inbox.replies" (messages both ways),
    "nabu.crew.msg" + BroadcastChannel "nabu-crew" (emergencies). The other crew members are demo data. */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const raw = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+// Astronaut data arrives either from this browser (same device) or through the link code (any device): use whichever is fresher.
+const MIRROR = { "nabu.en.v2": "nabu.sync.en", "nabu.live": "nabu.sync.live", "nabu.inbox.replies": "nabu.sync.replies" };
+const read = (k, d) => { const m = MIRROR[k]; if (m && (raw("nabu.sync.live", {}).at || 0) > (raw("nabu.live", {}).at || 0)) return raw(m, d); return raw(k, d); };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 const CAT = { self: "Risk to self", others: "Risk to a crewmate", ship: "Risk to the habitat", medical: "Medical red flag", distress: "Low mood signals" };
 const LEVEL = { ok: "Steady", warn: "Watch", bad: "Act now", info: "No data yet" };
@@ -528,6 +537,18 @@ $("#note-save").onclick = () => { const t = $("#notes").value.trim(); if (!t) { 
   const S = read("nabu.en.v2", {}); const h = read("bhc.history", []); h.push({ who: sel, day: S.day || 1, at: Date.now(), kind: "note", text: t }); write("bhc.history", h.slice(-500));
   $("#notes").value = ""; localStorage.removeItem("bhc.notes." + sel); toast("Note saved to the history."); forceNext = true; render(); };
 paintFreeze(); setInterval(stamp, 5000);
+
+(() => {
+  const inp = $("#room"), st = $("#room-st"); if (!inp) return;
+  inp.value = (window.NABU_SYNC && NABU_SYNC.room) || "";
+  const show = () => { st.className = window.NABU_SYNC && NABU_SYNC.on && inp.value ? "ok" : inp.value ? "wait" : ""; };
+  inp.addEventListener("change", () => {
+    ["nabu.sync.en", "nabu.sync.live", "nabu.sync.replies"].forEach((k) => localStorage.removeItem(k));
+    window.NABU_SYNC && NABU_SYNC.setRoom(inp.value); forceNext = true; render(); show();
+  });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
+  window.addEventListener("nabu:sync", show); setInterval(show, 2000); show();
+})();
 </script>
 </body>
 </html>
