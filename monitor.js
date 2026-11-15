@@ -405,7 +405,7 @@ function consentDialog(){
       <h2 style="margin:0 0 8px;font-size:18px">Fatigue measurement during the test</h2>
       <p style="margin:0 0 8px">While the test runs, Nabu can use the front camera to measure how long the eyes stay slowly closed (PERCLOS), an objective sign of fatigue.</p>
       <ul style="margin:0 0 14px;padding-left:18px"><li>The camera only runs during the test and stops at the end.</li>
-      <li>No image is saved or sent. Only numbers stay, on this device.</li>
+      <li>No image is saved or sent, with one exception: if you do not answer an emergency check, a single still goes to the crew so they can find you.</li>
       <li>It does not detect emotions, stress or “lies”.</li><li>You can withdraw your consent at any time.</li></ul>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-a="1" style="font:600 14px system-ui;border:0;border-radius:8px;padding:9px 14px;background:#D9581A;color:#fff;cursor:pointer">I agree</button>
       <button data-a="0" style="font:600 14px system-ui;border:1px solid #D5DBE6;border-radius:8px;padding:9px 14px;background:#E9EDF4;color:#16213A;cursor:pointer">Not now</button></div></div>`;
@@ -620,12 +620,21 @@ function create(opts = {}){
       if (performance.now() - (root.__nbmLastPrompt || -1e12) < CFG.promptCooldownMs) return;
       askOK(r, why); k.micro = []; k.slumpSince = null;
     }
+    // Emergency only (no answer): one small still from the camera, to see where the astronaut is. Never at any other time.
+    function emergencyStill(r){
+      try {
+        const v = r.src && r.src.video; if (!v || !v.videoWidth) return null;
+        const c = document.createElement('canvas'), w = 480; c.width = w; c.height = Math.round(w * v.videoHeight / v.videoWidth);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.7);
+      } catch (e){ return null; }
+    }
+    function whereNow(){ try { return root.__nabuWhere || (root.parent && root.parent !== root && root.parent.__nabuWhere) || null; } catch (e){ return root.__nabuWhere || null; } }
     function askOK(r, why){
       r.suspOpen = true; FrameUI.popup(false); root.__nbmLastPrompt = performance.now();
       const atS = Math.round((performance.now() - r.t0) / 1000), phase = r.engine.phase ? r.engine.phase.name : null;
       beep(660, 0.25);
       suspendOverlay(o.suspendAnswerMs || CFG.suspendAnswerMs, () => {
-        const msg = { kind: 'incap', reason: `No answer during ${r.meta.test}: ${why}.`,
+        const msg = { kind: 'incap', reason: `No answer during ${r.meta.test}: ${why}.`, why, where: whereNow(), snapshot: emergencyStill(r),
                       from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
         try { new BroadcastChannel('nabu-crew').postMessage(msg); } catch (e){}
         try { localStorage.setItem('nabu.crew.msg', JSON.stringify(msg)); } catch (e){}

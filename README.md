@@ -13,7 +13,7 @@ and check your health on the laptop in the Health console.
 | **Health console** | The Nabu Health app on a laptop: vitals, body systems, sleep & mind, labs, environment, guidance and NASA tech. |
 | **Journals** | A personal journal and a community journal. The on-device Guardian flags risk to the psychologist without sending the text. |
 | **Plant lounge & market** | Buy furniture and plants and arrange them in your rooms. |
-| **Psychologist console** | A live view of fatigue readings and assessments. It never shows journal text, answers or camera images. |
+| **Psychologist console** | A live view of fatigue readings and assessments. It never shows journal text or answers. Camera images never leave the device, except one still picture when the astronaut does not answer an emergency check (deleted after 24 h). |
 
 <p align="center"><img src="docs/plant-lounge.png" width="820" alt="The plant lounge"></p>
 

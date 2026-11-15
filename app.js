@@ -2526,7 +2526,7 @@ function openPsy(push) {
   bgPause();
   opener(push)("ASTRO-PSY · psychocognitive assessment", (b) => {
     b.innerHTML = `<div class="ared-bar psy-bar"><span class="pill private">Only numbers leave this tablet</span>
-        <span class="small muted">Fatigue is measured in the background while the test is open. No video is shown or saved.</span>
+        <span class="small muted">Fatigue is measured in the background while the test is open. No video is shown or saved; only if you don't answer an emergency check does one still go to the crew.</span>
         <span class="psy-cam" id="psy-cam" title="Camera measuring fatigue" hidden><i></i>measuring</span></div>
       <div class="psy-ready" id="psy-ready" hidden></div>
       <iframe id="psy-frame" class="ared-frame psy-frame" src="psy/index.html?who=Commander" title="ASTRO-PSY" allow="camera"></iframe>`;
@@ -2630,6 +2630,7 @@ let linkCh = null; try { linkCh = new BroadcastChannel("nabu-link"); } catch {}
 function heartbeat() {
   if (!astronautOn) return;
   const where = view === "room" ? roomById(currentRoom)?.name : view === "base" ? "Base overview" : view === "planet" ? "Planet map" : view;
+  window.__nabuWhere = where;
   const hb = { at: Date.now(), camera: !!BG.mon?.running, where, day: S.day, coins: S.coins, panel: $("#panel").hidden ? null : $("#panel-title").textContent, eyes: BG.mon?.running ? BG.mon.live() : null };
   try { localStorage.setItem("nabu.live", JSON.stringify(hb)); } catch {}
   try { linkCh && linkCh.postMessage({ type: "hb", hb }); } catch {}

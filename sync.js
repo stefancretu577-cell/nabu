@@ -32,7 +32,7 @@
       if (keys["nabu.inbox.replies"]) set("nabu.sync.replies", keys["nabu.inbox.replies"]);
       if (keys["nabu.live"]) { set("nabu.sync.live", keys["nabu.live"]); bc && bc.postMessage({ type: "hb", hb: keys["nabu.live"] }); }
       const sos = keys["nabu.crew.msg"], seen = get("nabu.sync.sosAt");
-      if (sos && sos.t && sos.t !== seen) { set("nabu.sync.sosAt", sos.t); if (Date.now() - sos.t < 60000) bcCrew && bcCrew.postMessage(sos); }
+      if (sos && sos.t && sos.t !== seen) { set("nabu.sync.sosAt", sos.t); bcCrew && bcCrew.postMessage(sos); }
       bc && bc.postMessage({ type: "act" });
       window.dispatchEvent(new StorageEvent("storage", { key: "nabu.en.v2" }));
     } else if (keys["nabu.inbox"]) {

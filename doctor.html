@@ -182,6 +182,22 @@ th { color: var(--mut); font: 500 12px var(--fb); } td.n { font-family: var(--fm
 @media (max-width: 1560px) { .hstat { display: none; } .me small, .brand small { display: none; } }
 @media (max-width: 1280px) { .wrap { grid-template-columns: 240px minmax(0, 1fr); } .col.r { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; padding: 12px; } .col.r { grid-template-columns: 1fr; } .kpis { grid-template-columns: 1fr 1fr; } .kpi { border-bottom: 1px solid var(--bd); } .charts { grid-template-columns: 1fr; } .me span, .presence span { display: none; } }
+
+/* emergencies with no answer: still, room, time (24 h) */
+.inc-box { border-color: rgba(255,107,107,.45) !important; }
+.inc { display: grid; grid-template-columns: 132px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--bd2); }
+.inc:first-child { border-top: 0; padding-top: 2px; }
+.inc-img { padding: 0; border: 1px solid rgba(255,107,107,.5); border-radius: 10px; overflow: hidden; background: #000; cursor: zoom-in; aspect-ratio: 16/9; }
+.inc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.inc-img.none { display: grid; place-content: center; text-align: center; font-size: 11px; color: var(--muted); cursor: default; background: var(--s1); }
+.inc-tx { display: flex; flex-direction: column; gap: 2px; font-size: 12px; min-width: 0; }
+.inc-tx b { font-size: 14px; color: #ff9a9a; } .inc.ok .inc-tx b { color: var(--teal); }
+.inc-tx span { color: var(--fg2); } .inc-tx small { color: var(--muted); } .inc-tx em { font-style: normal; color: var(--muted); font-size: 11px; }
+.inc-tx .btn.sm { align-self: flex-start; margin-top: 4px; height: 26px; padding: 0 10px; font-size: 11px; }
+.inc-modal { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; background: rgba(4,6,12,.82); cursor: zoom-out; padding: 24px; }
+.inc-modal figure { margin: 0; max-width: min(900px, 92vw); } .inc-modal img { width: 100%; border-radius: 14px; display: block; }
+.inc-modal figcaption { margin-top: 10px; color: #e8eef8; font-size: 14px; text-align: center; }
+.sos-img { float: left; width: 168px; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; margin: 0 14px 6px 0; border: 1px solid rgba(255,255,255,.35); }
 </style>
 </head>
 <body>
@@ -199,11 +215,12 @@ th { color: var(--mut); font: 500 12px var(--fb); } td.n { font-family: var(--fm
   <div class="col">
     <div class="box"><h2>Crew <em id="n-crew"></em></h2><div id="crew"></div></div>
     <div class="box privacy"><h2>This console receives</h2>
-      <ul><li>Guardian journal flags: category and level</li><li>Assessment numbers and test results</li><li>Fatigue from the camera, as numbers</li><li>Mood check-ins and workouts</li><li>How many journal pages were checked</li><li>“Are you OK?” check-ins</li></ul>
-      <h2>It never receives</h2><ul class="no"><li>Journal pages or chapters</li><li>Questionnaire answers</li><li>Camera images or video</li></ul></div>
+      <ul><li>Guardian journal flags: category and level</li><li>Assessment numbers and test results</li><li>Fatigue from the camera, as numbers</li><li>Mood check-ins and workouts</li><li>Emergency only: one camera still and the room, when the astronaut does not answer “Are you OK?” (deleted after 24 h)</li><li>How many journal pages were checked</li><li>“Are you OK?” check-ins</li></ul>
+      <h2>It never receives</h2><ul class="no"><li>Journal pages or chapters</li><li>Questionnaire answers</li><li>Camera images or video, apart from that one emergency still</li></ul></div>
   </div>
   <div class="col" id="main"></div>
   <div class="col r">
+    <div class="box inc-box" id="inc-box" hidden><h2>Emergencies <em>kept 24 h</em></h2><div id="incidents"></div></div>
     <div class="box"><h2>Alerts <em id="n-al"></em></h2><div class="feed" id="feed"></div></div>
     <div class="box ppc" id="ppc"></div>
     <div class="box"><h2>Private notes <em style="font-size:11px;color:var(--muted)">only on this console</em></h2><textarea id="notes" placeholder="Notes for the next private conference…"></textarea>
@@ -518,13 +535,37 @@ function liveUpdate(hb) {
   $("#lv-min").style.width = e ? Math.min(100, (e.minuteSec / 60) * 100) + "%" : "0%";
 }
 function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 3600); }
+// Emergencies with no answer: the still, the room and the time, kept on this console for 24 hours only.
+const INC_KEY = "bhc.incidents", INC_MS = 24 * 3600 * 1000;
+const incidents = () => read(INC_KEY, []).filter((x) => Date.now() - x.t < INC_MS);
+function keepIncident(msg) {
+  const list = incidents(); if (list.some((x) => x.id === msg.id)) return;
+  list.unshift({ id: msg.id, t: msg.t, from: msg.from, where: msg.where || null, why: msg.why || msg.reason || "", snapshot: msg.snapshot || null, answered: false });
+  try { write(INC_KEY, list.slice(0, 10)); } catch { write(INC_KEY, list.slice(0, 3)); }
+  drawIncidents();
+}
+function drawIncidents() {
+  const list = incidents(); write(INC_KEY, list);
+  const box = $("#inc-box"); if (!box) return; box.hidden = !list.length;
+  $("#incidents").innerHTML = list.map((x) => `<div class="inc ${x.answered ? "ok" : ""}">
+      ${x.snapshot ? `<button class="inc-img" data-inc="${esc(x.id)}" title="Open the still"><img src="${x.snapshot}" alt="Camera still at the moment of the alert"></button>` : `<div class="inc-img none">No camera picture<br><small>the camera was off</small></div>`}
+      <div class="inc-tx"><b>${esc(x.where || "Room unknown")}</b><span>${esc(x.from || "Commander")} · ${hhmm(x.t)} · ${new Date(x.t).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+        <small>${esc(x.why)}</small><em>${x.answered ? "Answered afterwards" : "No answer"} · auto-deleted ${new Date(x.t + INC_MS).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</em>
+        <button class="btn sm" data-incdel="${esc(x.id)}">Delete now</button></div></div>`).join("");
+  document.querySelectorAll("[data-inc]").forEach((b) => (b.onclick = () => { const x = incidents().find((y) => y.id === b.dataset.inc); if (!x) return;
+    const m = document.createElement("div"); m.className = "inc-modal"; m.innerHTML = `<figure><img src="${x.snapshot}" alt=""><figcaption><b>${esc(x.where || "Room unknown")}</b> · ${hhmm(x.t)} · ${esc(x.why)}</figcaption></figure>`;
+    m.onclick = () => m.remove(); document.body.append(m); }));
+  document.querySelectorAll("[data-incdel]").forEach((b) => (b.onclick = () => { write(INC_KEY, incidents().filter((y) => y.id !== b.dataset.incdel)); drawIncidents(); }));
+}
 function sos(msg) {
-  if (!msg || msg.kind !== "incap") { $("#sos").classList.remove("on"); return; }
-  $("#sos").innerHTML = `<b>${esc(msg.from || "Commander")} is not answering “Are you OK?”</b><p>No answer within 15 seconds · ${hhmm(msg.t)}</p><div class="row"><button class="btn pri" id="sos-ack">Acknowledge · alert the medical officer</button></div>`;
+  if (msg && msg.kind === "cancel") { const l = incidents(); l.forEach((x) => { if (Date.now() - x.t < 600000) x.answered = true; }); write(INC_KEY, l); drawIncidents(); }
+  if (msg && msg.kind === "incap") keepIncident(msg);
+  if (!msg || msg.kind !== "incap" || Date.now() - msg.t > 600000) { $("#sos").classList.remove("on"); return; }
+  $("#sos").innerHTML = `${msg.snapshot ? `<img class="sos-img" src="${msg.snapshot}" alt="Camera still at the moment of the alert">` : ""}<b>${esc(msg.from || "Commander")} is not answering “Are you OK?”</b><p>${msg.where ? `Last seen in <b>${esc(msg.where)}</b> · ` : ""}No answer within 15 seconds · ${hhmm(msg.t)}</p><div class="row"><button class="btn pri" id="sos-ack">Acknowledge · alert the medical officer</button></div>`;
   $("#sos").classList.add("on"); $("#sos-ack").onclick = () => { $("#sos").classList.remove("on"); toast("Ana (medical officer) has been alerted."); };
   try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 740; g.gain.value = 0.08; o.connect(g); g.connect(a.destination); o.start(); setTimeout(() => o.stop(), 500); } catch {}
 }
-render();
+render(); drawIncidents(); setInterval(drawIncidents, 60000);
 const lastSos = read("nabu.crew.msg", null); if (lastSos && lastSos.kind === "incap" && Date.now() - lastSos.t < 60000) sos(lastSos);
 let soonT = null; const soon = () => { clearTimeout(soonT); soonT = setTimeout(render, 120); };
 window.addEventListener("storage", (e) => { if (e.key === "nabu.live") liveUpdate(); else if (["nabu.en.v2", "nabu.inbox", "nabu.inbox.replies"].includes(e.key)) soon(); if (e.key === "nabu.crew.msg") sos(read("nabu.crew.msg", null)); });
