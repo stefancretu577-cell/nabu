@@ -31,6 +31,7 @@
 
 /* ======================= 1. CONFIGURARE ======================= */
 const VERSION = '1.3.0';
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(ev => root.addEventListener && root.addEventListener(ev, () => (root.__nbmLastInput = performance.now()), { passive: true, capture: true }));
 const CFG = {
   closedThr: 0.80, reopenThr: 0.70, slowMs: 400, winMs: 60000, minValidFrac: 0.70, minWinMs: 20000,
   maxAngle: 25, maxDt: 250, warmupMs: 3000, closedRatio: 0.30, openQ: 0.60, closedQ: 0.02, blinkW: 0.20,
@@ -564,6 +565,60 @@ function create(opts = {}){
   const status = s => { try { o.onStatus && o.onStatus(s); } catch (e){} };
   const onVis = () => { if (!run) return; if (document.hidden) run.hiddenAt = performance.now(); else if (run.hiddenAt){ run.hiddenMs += performance.now() - run.hiddenAt; run.hiddenAt = 0; } };
 
+    /* Risk pattern for "Are you OK?" (Euro NCAP driver-state monitoring classes, adapted to a seated astronaut):
+       microsleep = eyes closed 1–3 s with the face in view; sleep = eyes closed ≥ 3 s; unresponsive = eyes closed ≥ 6 s.
+       Ask only for: (A) eyes closed ≥ 6 s, (B) eyes closed ≥ 3 s after ≥ 2 microsleeps in the last 5 min (drowsiness
+       building up), (C) the head drops: the face disappears right after a ≥ 1 s eye closure and stays gone ≥ 6 s.
+       Never while the astronaut is using the device, never in the background, at most once every 2 minutes. */
+    function checkRisk(r, f){
+      const k = r.rk || (r.rk = { closedSince: null, micro: [], lastFaceClosedMs: 0, lastFaceT: 0, slumpSince: null });
+      const now = f.t, e = r.engine;
+      if (f.face){
+        k.slumpSince = null; k.lastFaceT = now;
+        if (e.closed){ if (k.closedSince == null) k.closedSince = e.closeStart || now; k.lastFaceClosedMs = now - k.closedSince; }
+        else {
+          if (k.closedSince != null){ const d = now - k.closedSince; if (d >= 1000 && d < 3000) k.micro.push(now); }
+          k.closedSince = null; k.lastFaceClosedMs = 0;
+        }
+      } else {
+        // face lost: a slump only if the eyes had been closing for ≥ 1 s just before
+        if (k.slumpSince == null && k.lastFaceClosedMs >= 1000 && now - k.lastFaceT < 600) k.slumpSince = now;
+        k.closedSince = null;
+      }
+      k.micro = k.micro.filter(t => now - t < 300000);
+      const closedFor = k.closedSince != null ? now - k.closedSince : 0;
+      let why = null;
+      if (closedFor >= 6000) why = 'eyes closed for 6 s';
+      else if (closedFor >= 3000 && k.micro.length >= 2) why = 'eyes closed for 3 s after repeated microsleeps';
+      else if (k.slumpSince != null && now - k.slumpSince >= 6000) why = 'head dropped after the eyes closed';
+      if (!why || r.suspOpen || document.hidden) return;
+      if (performance.now() - (root.__nbmLastInput || -1e12) < 8000) return;          // using the device: clearly responsive
+      if (performance.now() - (root.__nbmLastPrompt || -1e12) < CFG.promptCooldownMs) return;
+      askOK(r, why); k.micro = []; k.slumpSince = null;
+    }
+    function askOK(r, why){
+      r.suspOpen = true; FrameUI.popup(false); root.__nbmLastPrompt = performance.now();
+      const atS = Math.round((performance.now() - r.t0) / 1000), phase = r.engine.phase ? r.engine.phase.name : null;
+      beep(660, 0.25);
+      suspendOverlay(o.suspendAnswerMs || CFG.suspendAnswerMs, () => {
+        const msg = { kind: 'incap', reason: `No answer during ${r.meta.test}: ${why}.`,
+                      from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
+        try { new BroadcastChannel('nabu-crew').postMessage(msg); } catch (e){}
+        try { localStorage.setItem('nabu.crew.msg', JSON.stringify(msg)); } catch (e){}
+        try { window.dispatchEvent(new CustomEvent('nabu:emergency', { detail: msg })); } catch (e){}
+        try { o.onEmergency && o.onEmergency(msg); } catch (e){}
+      }).then(res => {
+        r.susp.push({ atS, phase, why, answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified });
+        try { window.dispatchEvent(new CustomEvent("nabu:checkin", { detail: { answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified, test: r.meta.test, why } })); } catch (e){}
+        if (res.teamNotified){
+          const c = { kind: 'cancel', reason: 'Answered after the alert', from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
+          try { new BroadcastChannel('nabu-crew').postMessage(c); } catch (e){}
+          try { localStorage.setItem('nabu.crew.msg', JSON.stringify(c)); } catch (e){}
+        }
+        r.suspOpen = false; root.__nbmLastPrompt = performance.now();
+      });
+    }
+
   const api = {
     get running(){ return !!run; },
     consent(){ return ls.get(CFG.KEY_CONSENT, null); },
@@ -588,54 +643,27 @@ function create(opts = {}){
         await src.start(f => {
           if (run !== r) return;
           r.engine.push(f); r.lastFrame = { t: f.t, face: !!f.face };
+          // Framing is only measured and logged. Looking away or leaving the frame is distraction, not danger
+          // (driver-monitoring practice), so it never interrupts anyone. Only a risk pattern does: see checkRisk.
           if (o.showFrame !== false){
             const fc = frameCheck(f.geo), fr = r.fr, now = f.t;
             if (now - fr.lastDraw > 100){ fr.lastDraw = now; FrameUI.draw(f.geo, fc.ok); }
             if (!fc.ok){
               fr.inSince = null; if (fr.outSince == null) fr.outSince = now;
-              // in Nabu: the event is still logged, but the astronaut is spoken to at most once every 2 minutes,
-              // never while Nabu is in the background, and a prompt already on screen is always finished
-              const quiet = !!window.NABU_EMBED && fr.popSince == null && !r.suspOpen &&
-                (document.hidden || performance.now() - (root.__nbmLastPrompt || -1e12) < CFG.promptCooldownMs);
               if (!fr.out && now - fr.outSince >= CFG.frameOutMs){
-                fr.out = true; fr.cur = { atS: Math.round((performance.now() - r.t0) / 1000), startT: fr.outSince, reason: fc.msg, phase: r.engine.phase ? r.engine.phase.name : null, silent: quiet };
-                if (!quiet) beep(660, 0.25);
+                fr.out = true; fr.cur = { atS: Math.round((performance.now() - r.t0) / 1000), startT: fr.outSince, reason: fc.msg, phase: r.engine.phase ? r.engine.phase.name : null, silent: true };
               }
-              if (fr.out && !quiet){
-                if (fr.popSince == null) root.__nbmLastPrompt = performance.now();
-                if (!r.suspOpen) FrameUI.popup(true, fc.msg);
-                if (fr.popSince == null) fr.popSince = now;
-                if (!r.suspOpen && now - fr.popSince >= (o.suspendAfterMs || CFG.suspendAfterMs)){
-                  r.suspOpen = true; FrameUI.popup(false);
-                  const atS = Math.round((performance.now() - r.t0) / 1000), phase = r.engine.phase ? r.engine.phase.name : null;
-                  suspendOverlay(o.suspendAnswerMs || CFG.suspendAnswerMs, () => {
-                    // fără răspuns: notificare de urgență către echipaj
-                    const msg = { kind: 'incap', reason: `No answer during ${r.meta.test}: the eyes left the frame and the test was paused.`,
-                                  from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
-                    try { new BroadcastChannel('nabu-crew').postMessage(msg); } catch (e){}
-                    try { localStorage.setItem('nabu.crew.msg', JSON.stringify(msg)); } catch (e){}
-                    try { window.dispatchEvent(new CustomEvent('nabu:emergency', { detail: msg })); } catch (e){}
-                    try { o.onEmergency && o.onEmergency(msg); } catch (e){}
-                  }).then(res => {
-                    r.susp.push({ atS, phase, answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified });
-                    try { window.dispatchEvent(new CustomEvent("nabu:checkin", { detail: { answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified, test: r.meta.test } })); } catch (e){}
-                    if (res.teamNotified){                                  // anunță echipajul că astronautul a răspuns
-                      const c = { kind: 'cancel', reason: 'Answered after the alert', from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
-                      try { new BroadcastChannel('nabu-crew').postMessage(c); } catch (e){}
-                      try { localStorage.setItem('nabu.crew.msg', JSON.stringify(c)); } catch (e){}
-                    }
-                    r.suspOpen = false; fr.popSince = null; fr.outSince = null; FrameUI.popup(false); root.__nbmLastPrompt = performance.now();   // dacă ochii tot nu sunt în chenar, ciclul reîncepe (în Nabu după pauza de 2 min)
-                  });
-                }
-              }
+              // outside Nabu (the stand-alone test) a quiet hint after a few seconds helps framing; never a sound, never an escalation
+              if (!window.NABU_EMBED && fr.out && now - fr.outSince >= 3000 && !r.suspOpen) FrameUI.popup(true, fc.msg);
             } else {
               fr.outSince = null; if (fr.inSince == null) fr.inSince = now;
               if (fr.out && now - fr.inSince >= CFG.frameBackMs){
-                fr.out = false; fr.popSince = null; if (!r.suspOpen) FrameUI.popup(false);
+                fr.out = false; if (!r.suspOpen) FrameUI.popup(false);
                 if (fr.cur){ fr.cur.durS = Math.round((now - fr.cur.startT) / 100) / 10; delete fr.cur.startT; fr.events.push(fr.cur); fr.cur = null; }
               }
             }
           }
+          checkRisk(r, f);
           if (f.geo){ r.qFrames++; for (const a of adviseCamera(f.geo)) r.quality[a.k] = (r.quality[a.k] || { k: a.k, msg: a.msg, n: 0 }), r.quality[a.k].n++; }
         });
         if (run !== r) return { ok: false, reason: 'oprit' };

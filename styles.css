@@ -1683,3 +1683,4 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .lap-boot i { width: 2.6cqw; height: 2.6cqw; min-width: 26px; min-height: 26px; border-radius: 50%; border: 3px solid rgba(63,199,181,.22); border-top-color: #3fc7b5; animation: lapSpin .8s linear infinite; will-change: transform; }
 @keyframes lapSpin { to { transform: rotate(360deg); } }
 .tv-host.laptop:has(.tv-screen.boot) .lap-boot { opacity: 1; transition-delay: .5s; }
+.pj-count b { color: #b77a12; } .pj-count.ready { color: #1f7a6a; font-weight: 600; } .pj-count.ready b { color: #1f7a6a; }

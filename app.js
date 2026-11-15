@@ -85,7 +85,7 @@ function normaFor(day) {
   return [...NORMA_FIXED, ...pick.map((t, i) => ({ id: "p" + i, t, d: "From today's plan" }))];
 }
 
-const REWARD = { astro: 40, journal: 10, journalStreak: 5, chapter: 25, read: 3, readCap: 5, pvt: 15, memory: 15, mood: 10, sleepQuest: 15, breath: 5, analysis: 20, rep: 2, goodSet: 10, exerciseCap: 120 };
+const REWARD = { astro: 40, selection: 30, journal: 10, journalStreak: 5, chapter: 25, read: 3, readCap: 5, pvt: 15, memory: 15, mood: 10, sleepQuest: 15, breath: 5, analysis: 20, rep: 2, goodSet: 10, exerciseCap: 120 };
 
 /* Market. Items unlock along the mission; until then they show as silhouettes. */
 const TIERS = { common: { name: "Common", color: "#a59cb8" }, uncommon: { name: "Uncommon", color: "#6fd38f" }, rare: { name: "Rare", color: "#7fb2ff" }, epic: { name: "Epic", color: "#c49bf0" }, legendary: { name: "Legendary", color: "#f2c14e" } };
@@ -1122,7 +1122,7 @@ function tameLaptop(w) {
     if (!w || w.__tamed) return; w.__tamed = true;
     const raf = w.requestAnimationFrame.bind(w), caf = w.cancelAnimationFrame.bind(w);
     let seq = 0, allowedT = -1e9, visT = 0, vis = true, touchAt = 0; const ids = new Map();
-    const poke = () => (touchAt = performance.now());
+    const poke = () => { touchAt = performance.now(); window.__nbmLastInput = touchAt; };
     ["pointerdown", "pointermove", "wheel", "keydown", "scroll"].forEach((ev) => w.addEventListener(ev, poke, { passive: true, capture: true }));
     const canvasOnScreen = (t) => {
       if (t - visT < 400) return vis; visT = t;
@@ -1463,6 +1463,24 @@ function buildKeyboard() {
     kb.append(row);
   });
 }
+// ASTRO-PSY results: paid whether or not the camera measured (the camera only adds the fatigue report)
+window.addEventListener("message", (e) => {
+  const d = e.data || {}; if (e.origin !== location.origin) return;
+  if (d.type === "astro-psy:result" && !d.incomplete && !S.daily.got.astro) {
+    S.daily.got.astro = true; addCoins(REWARD.astro, "ASTRO-PSY assessment");
+    logAct("assessment", `ASTRO-PSY finished${d.index != null ? ` · index ${d.index}` : ""}`, "ok");
+  }
+  if (d.type === "astro-psy:selection" && !S.daily.got.selection) {
+    S.daily.got.selection = true; addCoins(REWARD.selection, "Selection test");
+    logAct("assessment", `Selection test finished${d.total != null ? ` · ${d.total}/80 points` : ""}`, "ok");
+  }
+});
+// Nabu Health on the laptop: ticking a task in its to-do list pays the coins it shows, once per task per day
+window.addEventListener("message", (e) => {
+  const d = e.data || {}; if (e.origin !== location.origin || d.src !== "nabu-health" || d.type !== "todo" || !d.done) return;
+  const key = "health:" + d.id; if (S.daily.got[key]) return;
+  S.daily.got[key] = true; addCoins(Math.max(0, Math.min(50, +d.coins || 0)), `Nabu Health · ${String(d.title || "task").slice(0, 60)}`);
+});
 window.addEventListener("message", (e) => {
   const d = e.data; if (!d || d.src !== "tvapp") return;
   if (d.type === "ready") tvReady = true;
@@ -1777,7 +1795,7 @@ function journalPages() {
   const pages = S.journal.map((e, k) => `<div class="pg-ch"><h4>Chapter ${k + 1}</h4><div class="pg-meta">Day ${e.day} · ${esc(dateLabel(e.day))}</div><div class="pg-text" data-entry="${k}">${esc(e.text)}</div>${BK.lastScan?.k === k ? guardianStrip(BK.lastScan.r) : ""}</div>`);
   pages.push(`<div class="pg-ch write"><h4>Chapter ${S.journal.length + 1}</h4><div class="pg-meta">Day ${S.day} · today · only you</div>
     <textarea class="pg-ta" id="pj-text" placeholder="Dear journal, today…" aria-label="Today's journal page"></textarea>
-    <div class="pg-foot"><span id="pj-count">0 words · 40 for coins</span><button class="ink-btn" data-act="save-journal">Save page</button></div>
+    <div class="pg-foot"><span id="pj-count" class="pj-count">${jCount("")}</span><button class="ink-btn" data-act="save-journal">Save page</button></div>
     <label class="pg-consent"><input type="checkbox" data-act="consent" ${S.consent ? "checked" : ""}> analyse my tone on this device</label>
     <button class="gd-seal" data-nav="guardian"><i></i>Guardian on · reads for danger only, keeps no words</button></div>`);
   return pages;
@@ -1875,7 +1893,7 @@ function afterPaint() {
   });
   if (earned) { save(); addCoins(earned, "New chapters read"); }
   const focus = $(".pg-ch.focus", R); if (focus) setTimeout(() => focus.scrollIntoView({ block: "nearest", behavior: "smooth" }), 300);
-  const ta = $("#pj-text"); if (ta) { ta.oninput = () => ($("#pj-count").textContent = `${words(ta.value)} words · 40 for coins`); }
+  const ta = $("#pj-text"); if (ta) { ta.oninput = () => { const c = $("#pj-count"); c.innerHTML = jCount(ta.value); c.classList.toggle("ready", words(ta.value) >= 40 && !S.daily.got.journal); }; }
   const tb = $("#pb-text"); if (tb) { tb.oninput = () => ($("#pb-count").textContent = `${words(tb.value)} words · 60 minimum`); }
   const tt = $("#pb-title"); if (tt) tt.onchange = () => { S.book.title = tt.value.trim() || S.book.title; save(); };
   if (BK.inkEntry != null) { const el = $(`[data-entry="${BK.inkEntry}"]`); if (el) inkWrite(el, S.journal[BK.inkEntry].text); BK.inkEntry = null; }
@@ -2003,6 +2021,12 @@ function guardianSpread() {
     <p class="pg-note small">Level 3 alerts are always sent: that was agreed with ${esc(PSY.name)} before the flight.</p>
     <a class="gd-seal" href="doctor.html" target="_blank" rel="noopener"><i></i>See exactly what ${esc(PSY.name)} sees ↗</a>`;
   return { L, R, pl: "i", pr: "ii", back: { view: "journal" } };
+}
+// the word counter under today's page says plainly what earns coins
+function jCount(text) {
+  const n = words(text);
+  if (S.daily.got.journal) return `${n} words · today's journal coins already earned`;
+  return n >= 40 ? `${n} words · <b>+${REWARD.journal} coins</b> when you save` : `${n} / 40 words · write 40 to earn <b>+${REWARD.journal}</b>`;
 }
 function saveJournalPage() {
   const ta = $("#pj-text"); const text = ta.value.trim(); if (!text) return;
