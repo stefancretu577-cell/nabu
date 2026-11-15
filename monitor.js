@@ -497,38 +497,62 @@ const SuspendUI = {
   w: null, timers: [], keyBlock: null,
   close(){ this.timers.forEach(t => clearTimeout(t) || clearInterval(t)); this.timers = []; if (this.keyBlock){ window.removeEventListener('keydown', this.keyBlock, true); window.removeEventListener('keyup', this.keyBlock, true); this.keyBlock = null; } if (this.w){ this.w.remove(); this.w = null; } }
 };
-function suspendOverlay(answerMs, onNoAnswer){
+function suspendOverlay(answerMs, onNoAnswer, why){
+  // Two-step check-in, as in driver-monitoring systems: a calm card first, an alarm only if there is no answer.
   return new Promise(resolve => {
     SuspendUI.close();
+    const WHY = { 'eyes closed for 6 s': 'Your eyes have been closed for a few seconds.',
+      'eyes closed for 3 s after repeated microsleeps': 'Your eyes keep closing for longer than a blink.',
+      'head dropped after the eyes closed': 'Your head dropped right after your eyes closed.' };
+    const reason = WHY[why] || 'We noticed signs that you may be very tired.';
     const w = SuspendUI.w = document.createElement('div'); w.id = 'nabu-bgmon-suspend';
-    w.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(120,14,14,.94);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;font:16px/1.5 system-ui,sans-serif;text-align:center';
-    w.innerHTML = `<div role="alertdialog" aria-modal="true" aria-labelledby="nbm-sus" style="max-width:560px;width:100%">
-      <div style="font:700 13px ui-monospace,monospace;letter-spacing:.12em;opacity:.85">${T('TEST PAUSED', 'CHECK-IN')}</div>
-      <h1 id="nbm-sus" style="margin:8px 0 10px;font-size:44px;line-height:1.1">${T('Ești OK?', 'Are you OK?')}</h1>
-      <p data-m style="margin:0 0 22px;font-size:18px">${T('Answer, or the team will be alerted.', 'Please answer, otherwise the crew will be alerted.')}</p>
-      <button data-ok style="font:700 22px system-ui;border:0;border-radius:14px;padding:18px 34px;background:#fff;color:#8C1414;cursor:pointer;min-width:260px">${T('Sunt OK', "I'm OK")}</button>
-      <div data-c style="margin-top:16px;font:600 15px ui-monospace,monospace"></div></div>`;
+    w.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:20px;background:rgba(6,10,22,.62);backdrop-filter:blur(3px);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#e8eef8;animation:nbmIn .35s ease-out both';
+    const R = 34, C = 2 * Math.PI * R;
+    w.innerHTML = `<style>@keyframes nbmIn{from{opacity:0}}@keyframes nbmUp{from{transform:translateY(14px) scale(.98);opacity:0}}
+      #nabu-bgmon-suspend .card{width:min(440px,100%);border-radius:22px;padding:26px 26px 22px;text-align:center;background:linear-gradient(180deg,#141c2e,#0d1322);
+        border:1px solid rgba(63,199,181,.35);box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 6px rgba(63,199,181,.06);animation:nbmUp .45s cubic-bezier(.2,.8,.2,1) both;transition:border-color .4s,background .4s}
+      #nabu-bgmon-suspend.alert .card{border-color:rgba(255,107,107,.6);background:linear-gradient(180deg,#2a1218,#1a0b10);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 6px rgba(255,107,107,.1)}
+      #nabu-bgmon-suspend .tag{font:700 11px ui-monospace,monospace;letter-spacing:.16em;color:#7fe3d4}
+      #nabu-bgmon-suspend.alert .tag{color:#ff9a9a}
+      #nabu-bgmon-suspend h1{margin:6px 0 6px;font:700 32px/1.15 system-ui,sans-serif;color:#fff}
+      #nabu-bgmon-suspend p{margin:0 0 4px;color:#b9c4d8}
+      #nabu-bgmon-suspend .ring{position:relative;width:84px;height:84px;margin:16px auto 18px}
+      #nabu-bgmon-suspend .ring svg{transform:rotate(-90deg)} #nabu-bgmon-suspend .ring b{position:absolute;inset:0;display:grid;place-items:center;font:700 22px ui-monospace,monospace;color:#fff}
+      #nabu-bgmon-suspend button{font:700 18px system-ui,sans-serif;border:0;border-radius:14px;padding:15px 34px;min-width:230px;cursor:pointer;color:#062420;background:linear-gradient(180deg,#7fe3d4,#3fc7b5);box-shadow:0 8px 24px rgba(63,199,181,.35);transition:transform .15s}
+      #nabu-bgmon-suspend button:hover{transform:translateY(-1px)} #nabu-bgmon-suspend button:active{transform:scale(.97)}
+      #nabu-bgmon-suspend.alert button{color:#3a0a0a;background:linear-gradient(180deg,#fff,#ffd9d9)}
+      #nabu-bgmon-suspend small{display:block;margin-top:12px;font:600 12px ui-monospace,monospace;color:#8592ab}</style>
+      <div class="card" role="alertdialog" aria-modal="true" aria-labelledby="nbm-sus" aria-describedby="nbm-why">
+        <div class="tag" data-tag>CHECK-IN</div>
+        <h1 id="nbm-sus">Are you OK?</h1>
+        <p id="nbm-why">${reason}</p>
+        <div class="ring"><svg width="84" height="84"><circle cx="42" cy="42" r="${R}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"/>
+          <circle data-arc cx="42" cy="42" r="${R}" fill="none" stroke="#3fc7b5" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg><b data-n>${Math.ceil(answerMs / 1000)}</b></div>
+        <button data-ok>I'm OK</button>
+        <small data-c>If there is no answer, the crew will be alerted.</small></div>`;
     document.body.appendChild(w);
-    // testul e blocat: tastele nu ajung la pagină (în afară de Enter/Spațiu pe buton)
     SuspendUI.keyBlock = e => { if (!w.contains(e.target) || !['Enter', ' '].includes(e.key)) { e.stopImmediatePropagation(); e.preventDefault(); } };
     window.addEventListener('keydown', SuspendUI.keyBlock, true); window.addEventListener('keyup', SuspendUI.keyBlock, true);
     const btn = w.querySelector('[data-ok]'); setTimeout(() => btn.focus(), 50);
+    const arc = w.querySelector('[data-arc]'), num = w.querySelector('[data-n]');
     const t0 = performance.now(); let notified = false, settled = false;
-    const alarm = setInterval(() => { beep(notified ? 520 : 880, 0.18); setTimeout(() => beep(notified ? 520 : 880, 0.18), 260); }, 700);   // beep continuu
-    SuspendUI.timers.push(alarm);
+    // step 1: a soft two-note chime every 3 s; step 2 (no answer): the alarm
+    beep(660, 0.15); setTimeout(() => beep(880, 0.15), 180);
+    const chime = setInterval(() => { if (notified) return; beep(660, 0.12); setTimeout(() => beep(880, 0.12), 160); }, 3000);
+    const alarm = setInterval(() => { if (!notified) return; beep(880, 0.18); setTimeout(() => beep(880, 0.18), 260); }, 900);
+    SuspendUI.timers.push(chime, alarm);
     const tick = setInterval(() => {
       const left = Math.max(0, answerMs - (performance.now() - t0));
-      const c = w.querySelector('[data-c]');
       if (!notified){
-        c.textContent = T(`The team will be alerted in ${Math.ceil(left / 1000)} s`, `The crew will be alerted in ${Math.ceil(left / 1000)} s`);
+        num.textContent = Math.ceil(left / 1000); arc.setAttribute('stroke-dashoffset', String(C * (1 - left / answerMs)));
         if (left <= 0){
-          notified = true; onNoAnswer();
-          w.querySelector('[data-m]').textContent = T('The team was alerted. If you are fine, press the button.', 'The crew has been alerted. If you are fine, press the button.');
-          c.textContent = T('Alert sent · ', 'Alert sent · ') + new Date().toLocaleTimeString(root.NABU_EMBED ? 'en-GB' : 'ro-RO');
-          w.style.background = 'rgba(70,0,0,.97)';
+          notified = true; onNoAnswer(); w.classList.add('alert'); arc.setAttribute('stroke', '#ff6b6b'); num.textContent = '!';
+          w.querySelector('[data-tag]').textContent = 'CREW ALERTED';
+          w.querySelector('#nbm-why').textContent = 'The crew has been alerted. If you are fine, press the button.';
+          w.querySelector('[data-c]').textContent = 'Alert sent · ' + new Date().toLocaleTimeString('en-GB');
         }
       }
-    }, 250);
+    }, 100);
     SuspendUI.timers.push(tick);
     btn.onclick = () => {
       if (settled) return; settled = true;
@@ -607,7 +631,7 @@ function create(opts = {}){
         try { localStorage.setItem('nabu.crew.msg', JSON.stringify(msg)); } catch (e){}
         try { window.dispatchEvent(new CustomEvent('nabu:emergency', { detail: msg })); } catch (e){}
         try { o.onEmergency && o.onEmergency(msg); } catch (e){}
-      }).then(res => {
+      }, why).then(res => {
         r.susp.push({ atS, phase, why, answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified });
         try { window.dispatchEvent(new CustomEvent("nabu:checkin", { detail: { answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified, test: r.meta.test, why } })); } catch (e){}
         if (res.teamNotified){
