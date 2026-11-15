@@ -50,7 +50,7 @@ const modById = (id) => MODULES.find((m) => m.id === id);
 const ROOMS = [
   { id: "bedroom", module: "hub", name: "Bedroom", img: "room-bedroom", empty: true, doors: { left: [11.2, 52], right: [88.3, 52] }, hotspots: [],
     slots: [{ id: "bed", x: 38, y: 86, items: ["bed"] }, { id: "ward", x: 70, y: 68, items: ["wardrobe", "bookshelf"] }, { id: "night", x: 58, y: 77, items: ["nightstand", "lamp"] }, { id: "wall", x: 30, y: 46, items: ["painting", "poster", "wallshelf"] }, { id: "floor", x: 50, y: 95, items: ["rug"] }] },
-  { id: "living", module: "hub", name: "Living quarters", img: "room-living", doors: { left: [9, 52], right: [91, 52] }, hotspots: [{ x: 22, y: 60, label: "Desk · Write", act: "desk", ic: "pen" }, { x: 76, y: 50, label: "Wall sheets · Tasks", act: "sheets", ic: "check" }, { x: 50, y: 40, label: "Window · Look out", act: "landview", ic: "globe" }],
+  { id: "living", module: "hub", name: "Living quarters", img: "room-living", hotspots: [{ x: 15, y: 57, label: "Desk · Write", act: "desk", ic: "pen" }, { x: 83.4, y: 52, label: "Wall sheets · Tasks", act: "sheets", ic: "check" }, { x: 49.8, y: 40, label: "Window · Look out", act: "landview", ic: "globe" }],
     slots: [{ id: "center", x: 52, y: 86, items: ["sofa", "armchair", "beanbag"] }, { id: "low", x: 38, y: 92, items: ["coffeetable", "rug"] }] },
   { id: "command", module: "hub", name: "Health console", img: "room-command", command: true, noDrift: true, hotspots: [], slots: [] },
   { id: "mess", module: "hub", name: "Mess hall", img: "room-mess", empty: true, doors: { left: [10.3, 52], right: [90, 52] }, hotspots: [],
@@ -519,18 +519,26 @@ async function enterRoom(id) {
   if (moving) return;
   const m = modById(id); const r = roomById(m.room);
   if (view !== "base") { go("room", r.id); arriveAnim(); return; }
-  if (reducedMotion()) { go("room", r.id); if (r.id === "command") setStanding(false); return; }
+  if (id === "hub") {
+    const title = `<div class="ey">${esc(m.name)} · ${esc(ME.base)}</div><div class="nm">${esc(r.name)}</div>`;
+    // one continuous shot: from the sky view down through the hub's skylight into the study, to the desk, and the laptop is set down and opened
+    if (!reducedMotion()) {
+      $("#base-markers").style.opacity = 0;
+      const ok = await playClip({ clip: "base-console", fromFrame: $("#base"), title, show: () => { go("room", "command"); $("#base-markers").style.opacity = ""; }, toFrameSel: "#room" });
+      if (ok) return; $("#base-markers").style.opacity = "";
+    }
+  }
+  if (reducedMotion()) { go("room", r.id); return; }
   moving = true;
   const sc = $("#base .scene"); $("#base-markers").style.opacity = 0; $("#base").classList.add("zooming");
   sc.style.animation = "none"; sc.style.transformOrigin = `${m.x}% ${m.y}%`;
   await sc.animate([{ transform: "scale(1)", filter: "brightness(1)" }, { transform: "scale(5.5)", filter: "brightness(1.35)" }], { duration: 430, easing: "cubic-bezier(.55,0,.8,.3)", fill: "forwards" }).finished;
   const g = ghostOf($("#base"));
   sc.getAnimations().forEach((x) => x.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; $("#base").classList.remove("zooming");
-  go("room", r.id); if (r.id === "command") setStanding(true);
+  go("room", r.id);
   g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: "ease-out", fill: "forwards" }).onfinish = () => g.remove();
   await $("#room .scene").animate([{ transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 420, easing: E_OUT }).finished;
   moving = false;
-  if (r.id === "command") await sitDown();
 }
 
 /* Hover info cards, like an architecture showcase. */
@@ -550,8 +558,8 @@ function go(v, room, focus, quiet) {
   $$(".view").forEach((el) => (el.hidden = true));
   $("#view-" + v).hidden = false;
   if (v === "planet") { renderPlanet(); primeClip("planet-base"); }
-  if (v === "base") { renderBase(); primeClip("lap-open"); }
-  if (v === "room") { renderRoom(); primeClip(currentRoom === "command" ? "lap-close" : "lap-open"); const i = HUB.indexOf(currentRoom); if (i >= 0) { primeClip(`door-${currentRoom}-${HUB[(i + 1) % HUB.length]}`); primeClip(`door-${currentRoom}-${HUB[(i + HUB.length - 1) % HUB.length]}`); } }
+  if (v === "base") { renderBase(); primeClip("base-console"); }
+  if (v === "room") { renderRoom(); if (currentRoom === "command") { primeClip("door-command-living"); primeClip("console-out"); } else primeClip(currentRoom === "living" ? "door-living-command" : "console-in"); const i = HUB.indexOf(currentRoom); if (i >= 0) { primeClip(`door-${currentRoom}-${HUB[(i + 1) % HUB.length]}`); primeClip(`door-${currentRoom}-${HUB[(i + HUB.length - 1) % HUB.length]}`); } }
   if (v === "corridor") { openCorridorView(focus, quiet); primeClip("hatch-" + ROOMS[corrIdx].id); }
   $("#stage").scrollTop = 0;
 }
@@ -621,8 +629,7 @@ function renderRoom(arrive) {
   const r = roomById(currentRoom);
   $("#room-name").textContent = r.name;
   const frame = $("#room"), scene = $("#room .scene");
-  frame.classList.toggle("tvroom", !!r.tv); frame.classList.toggle("cmdroom", !!r.command); frame.classList.remove("lapzoom");
-  if (!r.command && consoleStanding) { consoleStanding = false; frame.classList.remove("standing"); $("#wall-ui").style.visibility = ""; } scene.classList.toggle("still", !!r.noDrift);
+  frame.classList.toggle("tvroom", !!r.tv); frame.classList.toggle("cmdroom", !!r.command); frame.classList.remove("lapzoom"); scene.classList.toggle("still", !!r.noDrift);
   const img = $("#room-img"); img.src = imgUrl(r); img.alt = "Inside the " + r.name;
   img.style.filter = `brightness(${wellness().brightness})`;
   const light = S.light[r.id] || "warm";
@@ -675,12 +682,28 @@ function renderRoom(arrive) {
 function stepRoom(d) { if (HUB.includes(currentRoom)) hubStep(d); }
 /* ── moving around ──
    Hub rooms: walk through the door into the neighbouring room (a clip per door). Modules: back to the base and in again. */
-const HUB = ["bedroom", "living", "command", "mess"];
+const HUB = ["bedroom", "living", "mess"];
+async function hubStep(d) {
+  if (moving) return;
+  const i = HUB.indexOf(currentRoom); if (i < 0) return;
+  const to = HUB[(i + d + HUB.length) % HUB.length];
+  const ok = await playClip({ clip: `door-${currentRoom}-${to}`, fromFrame: $("#room"), show: () => go("room", to), toFrameSel: "#room" });
+  if (!ok) slideRooms(to, d);
+}
 // fallback when a door clip is missing: a quick sideways move, no blur
+function slideRooms(to, d) {
+  const g = ghostLite($("#room")); go("room", to);
+  g.animate([{ transform: "none", opacity: 1 }, { transform: `translateX(${-18 * d}%)`, opacity: 0 }], { duration: 280, easing: E_IN, fill: "forwards" }).onfinish = () => g.remove();
+  $("#room .scene").animate([{ transform: `translateX(${18 * d}%)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 340, delay: 40, easing: E_OUT, fill: "backwards" });
+}
 // Leaving a room or module: the camera pulls back up out of the roof and you are above the base again.
 async function leaveToBase() {
   if (moving) return;
-  if (currentRoom === "command") await standUp();
+  if (currentRoom === "command" && !reducedMotion()) {
+    await unzoomLaptop();
+    const ok = await playClip({ clip: "console-out", fromFrame: $("#room"), show: () => { go("base"); }, toFrameSel: "#base", rate: 1 });
+    if (ok) return;
+  }
   const m = modById(roomById(currentRoom).module);
   const g = ghostLite($("#room")); go("base");
   const sc = $("#base .scene");
@@ -689,96 +712,65 @@ async function leaveToBase() {
   g.animate([{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.6)", opacity: 0 }], { duration: 300, easing: E_IN, fill: "forwards" }).onfinish = () => { g.remove(); sc.style.transformOrigin = ""; };
 }
 // From one room to another anywhere (filmstrip): through the hub doors, or up to the base and down into the module.
-// Straight to any room from the room line: the current room fades back, the new one settles in, in the same frame.
-/* Into the control room: the room you are in rushes towards you and dissolves into the glow of the monitors,
-   which then settle in front of you and power on. Out of it: the screens collapse to a line like an old monitor,
-   and the room you go to opens up behind them. */
-/* Moving between rooms of the hub happens through the doors drawn in the pictures: the camera walks to the door,
-   through it, and arrives at the matching door of the next room, then steps back to see the room. Only the picture
-   moves (a transform), so furniture stays where it is and nothing ever goes outside the base. Pairs that have a
-   filmed door clip (bedroom <-> mess hall) use it. The health console is a study: you stand in it, walk to the desk,
-   sit, and the laptop is set down; when you leave, the laptop closes and the view pulls back from the desk. */
-const DOORS = { bedroom: { l: [11.2, 52], r: [88.3, 52] }, living: { l: [9, 52], r: [91, 52] }, mess: { l: [10.3, 52], r: [90, 52] }, command: { l: [5, 52], r: [95, 52] } };
-const DESK = [50, 56], DESK_K = 2.6;
-let consoleStanding = false;
-function setStanding(on) {
-  consoleStanding = on;
-  const img = $("#room-img"); if (img) img.src = on ? "assets/room-study.webp" : imgUrl(roomById("command"));
-  $("#wall-ui").style.visibility = on ? "hidden" : ""; $("#room").classList.toggle("standing", on);
-}
-const sceneEl = () => $("#room .scene");
-const unmove = (el) => { el.getAnimations().forEach((a) => a.cancel()); el.style.transformOrigin = ""; };
-async function sitDown() {
-  const sc = sceneEl(); moving = true;
-  sc.style.transformOrigin = `${DESK[0]}% ${DESK[1]}%`;
-  await sc.animate([{ transform: "scale(1)" }, { transform: `scale(${DESK_K})` }], { duration: reducedMotion() ? 0 : 800, easing: E_IO, fill: "forwards" }).finished;
-  moving = false;
-  const done = () => { unmove(sc); setStanding(false); };
-  const ok = await playClip({ clip: "lap-open", fromFrame: $("#room"), show: done, toFrameSel: "#room" });
-  if (!ok) done();
-}
-async function standUp() {
-  await unzoomLaptop();
-  const sc = sceneEl();
-  const show = () => { setStanding(true); sc.style.transformOrigin = `${DESK[0]}% ${DESK[1]}%`; sc.animate([{ transform: `scale(${DESK_K})` }, { transform: `scale(${DESK_K})` }], { duration: 1, fill: "forwards" }); };
-  const ok = await playClip({ clip: "lap-close", fromFrame: $("#room"), show, toFrameSel: "#room" });
-  if (!ok) show();
-  moving = true;
-  await sc.animate([{ transform: `scale(${DESK_K})` }, { transform: "scale(1)" }], { duration: reducedMotion() ? 0 : 800, easing: E_IO, fill: "forwards" }).finished;
-  unmove(sc); moving = false;
-}
-async function preload(id) { try { const im = new Image(); im.src = id === "command" ? "assets/room-study.webp" : imgUrl(roomById(id)); await im.decode(); } catch {} }
-async function doorWalk(to, d) {
-  const from = currentRoom;
-  const exit = (DOORS[from] || {})[d > 0 ? "r" : "l"] || [d > 0 ? 92 : 8, 52], entry = (DOORS[to] || {})[d > 0 ? "l" : "r"] || [d > 0 ? 8 : 92, 52];
-  if (from === "command") await standUp();
-  if (reducedMotion()) { go("room", to); if (to === "command") setStanding(false); return; }
-  moving = true; await preload(to);
-  let sc = sceneEl(); sc.style.transformOrigin = `${exit[0]}% ${exit[1]}%`;
-  $("#room").classList.add("walking");
-  await sc.animate([{ transform: "scale(1)", opacity: 1 }, { offset: .7, opacity: .85 }, { transform: "scale(2.3)", opacity: 0 }], { duration: 620, easing: E_IN, fill: "forwards" }).finished;
-  unmove(sc);
-  go("room", to); if (to === "command") setStanding(true);
-  sc = sceneEl(); sc.style.transformOrigin = `${entry[0]}% ${entry[1]}%`;
-  await sc.animate([{ transform: "scale(2.3)", opacity: 0 }, { offset: .3, opacity: .85 }, { transform: "scale(1)", opacity: 1 }], { duration: 820, easing: E_OUT, fill: "backwards" }).finished;
-  sc.style.transformOrigin = ""; $("#room").classList.remove("walking");
-  moving = false;
-  if (to === "command") await sitDown();
-}
-async function hubStep(d) {
-  if (moving) return;
-  const i = HUB.indexOf(currentRoom); if (i < 0) return;
-  const to = HUB[(i + d + HUB.length) % HUB.length];
-  const filmed = (currentRoom === "bedroom" && to === "mess") || (currentRoom === "mess" && to === "bedroom");
-  if (filmed && await playClip({ clip: `door-${currentRoom}-${to}`, fromFrame: $("#room"), show: () => go("room", to), toFrameSel: "#room" })) return;
-  return doorWalk(to, d);
-}
-// From one room to another anywhere: next door through the door, otherwise a soft cut in the same frame.
 async function travelTo(id) {
   if (moving || id === currentRoom) return;
   const target = roomById(id); if (!S.built[target.module]) return openBuild(modById(target.module));
+  if (id === "command" || currentRoom === "command") return consoleSwap(id);
   const a = HUB.indexOf(currentRoom), b = HUB.indexOf(id);
   if (a >= 0 && b >= 0) { const n = HUB.length, fwd = (b - a + n) % n; if (fwd === 1 || fwd === n - 1) return hubStep(fwd === 1 ? 1 : -1); }
   jumpTo(id);
 }
+// Straight to any room from the room line: the current room fades back, the new one settles in, in the same frame.
 async function jumpTo(id) {
-  if (currentRoom === "command") await standUp();
-  if (reducedMotion()) { go("room", id); if (id === "command") setStanding(false); return; }
-  moving = true; await preload(id);
-  const g = ghostLite($("#room")); go("room", id); if (id === "command") setStanding(true);
+  if (reducedMotion()) { go("room", id); return; }
+  moving = true;
+  // decode the next room's picture first, so the swap never stalls a frame
+  try { const im = new Image(); im.src = imgUrl(roomById(id)); await im.decode(); } catch {}
+  const g = ghostLite($("#room")); go("room", id);
   g.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.97)" }], { duration: 240, easing: "ease-in", fill: "forwards" }).onfinish = () => g.remove();
-  await sceneEl().animate([{ opacity: 0, transform: "scale(1.04)" }, { opacity: 1, transform: "scale(1)" }], { duration: 340, delay: 60, easing: E_OUT, fill: "backwards" }).finished;
+  $("#room .scene").animate([{ opacity: 0, transform: "scale(1.04)" }, { opacity: 1, transform: "scale(1)" }], { duration: 340, delay: 60, easing: E_OUT, fill: "backwards" }).onfinish = () => (moving = false);
+}
+/* Into the control room: the room you are in rushes towards you and dissolves into the glow of the monitors,
+   which then settle in front of you and power on. Out of it: the screens collapse to a line like an old monitor,
+   and the room you go to opens up behind them. */
+async function consoleSwap(id) {
+  if (moving) return;
+  if (id === "command" && !reducedMotion()) {
+    const ok = await playClip({ clip: currentRoom === "living" ? "door-living-command" : "console-in", fromFrame: $("#room"), show: () => go("room", "command"), toFrameSel: "#room", rate: 1 });
+    if (ok) return;
+  }
+  if (id !== "command" && currentRoom === "command" && !reducedMotion()) {
+    await unzoomLaptop();
+    const ok = await playClip({ clip: id === "living" ? "door-command-living" : "console-out", fromFrame: $("#room"), show: () => go("room", id), toFrameSel: "#room", rate: 1 });
+    if (ok) return;
+  }
+  moving = true; const room = $("#room");
+  if (reducedMotion()) { go("room", id); moving = false; return; }
+  if (id === "command") {
+    const g = ghostLite(room); go("room", "command");
+    const sc = $("#room .scene");
+    g.animate([{ transform: "scale(1)", filter: "brightness(1) blur(0)", opacity: 1 }, { transform: "scale(1.9)", filter: "brightness(1.6) blur(6px)", opacity: 0 }], { duration: 650, easing: "cubic-bezier(.55,0,.75,.3)", fill: "forwards" }).onfinish = () => g.remove();
+    await sc.animate([{ transform: "scale(.82)", filter: "brightness(2.2) blur(10px)", opacity: 0 }, { offset: .45, opacity: 1 }, { transform: "scale(1)", filter: "brightness(1) blur(0)", opacity: 1 }], { duration: 900, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }).finished;
+  } else {
+    if (screenZoom) setScreenZoom(false);
+    const sc = $("#room .scene"); sc.style.transformOrigin = "50% 50%"; $("#wall-ui").style.transformOrigin = "50% 50%";
+    $("#wall-ui").animate([{ transform: "scaleY(1)", opacity: 1 }, { offset: .55, transform: "scaleY(.012)", opacity: 1 }, { transform: "scaleY(.012) scaleX(0)", opacity: 0 }], { duration: 520, easing: "cubic-bezier(.5,0,.8,.3)", fill: "forwards" });
+    await sc.animate([{ transform: "scaleY(1)", filter: "brightness(1)" }, { offset: .55, transform: "scaleY(.012) scaleX(1)", filter: "brightness(3)" }, { transform: "scaleY(.012) scaleX(0)", filter: "brightness(4)" }], { duration: 520, easing: "cubic-bezier(.5,0,.8,.3)", fill: "forwards" }).finished;
+    const flash = document.createElement("div"); flash.className = "crt-line"; room.append(flash);
+    go("room", id); sc.getAnimations().forEach((a) => a.cancel()); $("#wall-ui").getAnimations().forEach((a) => a.cancel()); sc.style.transformOrigin = "";
+    flash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }).onfinish = () => flash.remove();
+    await $("#room .scene").animate([{ transform: "scale(1.12)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 650, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }).finished;
+  }
   moving = false;
-  if (id === "command") await sitDown();
 }
 // The room line: every room of the base on one line, hub rooms first, then the modules.
 function renderRoomLine() {
   const box = $("#roomline"); if (!box) return;
-  const order = ["command", ...HUB.filter((x) => x !== "command"), ...MODULES.filter((m) => m.id !== "hub").map((m) => m.room)];
+  const order = ["command", ...HUB, ...MODULES.filter((m) => m.id !== "hub").map((m) => m.room)];
   box.innerHTML = `<span class="rl-group">Central hub</span>` + order.map((id, k) => {
     const r = roomById(id), m = modById(r.module), st = S.built[m.id] ? "open" : moduleState(m);
     const lab = st === "open" ? r.name : st === "available" ? `${m.cost} coins` : `Day ${m.day}`;
-    return `${k === HUB.length ? `<span class="rl-sep"></span><span class="rl-group">Modules</span>` : ""}<button class="rl-stop ${st} ${id === currentRoom ? "on" : ""}" data-room="${id}" title="${st === "open" ? esc(r.name) : "Undiscovered module"}">
+    return `${k === HUB.length + 1 ? `<span class="rl-sep"></span><span class="rl-group">Modules</span>` : ""}<button class="rl-stop ${st} ${id === currentRoom ? "on" : ""}" data-room="${id}" title="${st === "open" ? esc(r.name) : "Undiscovered module"}">
       <i>${st === "open" ? "" : `<img src="assets/lock.webp" alt="">`}</i><span>${esc(lab)}</span></button>`;
   }).join("");
   $$("#roomline .rl-stop").forEach((b) => (b.onclick = () => travelTo(b.dataset.room)));
@@ -902,7 +894,7 @@ function renderWallScreen() {
 // The table is laid out flat (WS_W × WS_H) and projected onto the four corners of the glass in the photo,
 // so it follows the wall's perspective instead of floating on top of it.
 const WS_W = 400, WS_H = 320;
-const WS_QUAD = [[17.0, 28.1], [27.6, 29.4], [27.7, 43.1], [17.0, 44.0]]; // tl, tr, br, bl in % of the room image
+const WS_QUAD = [[6.64, 21.55], [22.11, 26.38], [22.27, 43.37], [6.56, 43.92]]; // tl, tr, br, bl in % of the room image
 function homography(w, h, q) {
   const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
   const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
@@ -923,7 +915,7 @@ function placeWallScreen() {
 const ZONES = {
   // m = % of the frame height that one metre takes at the back edge of the floor (measured from floor-to-ceiling, 2.5 m)
   bedroom: { m: 18.5, floor: [66, 22, 78, 91, 7, 93], walls: [[24, 20, 40, 50], [60, 20, 76, 50]] },
-  living: { m: 19, floor: [69, 18, 84, 91, 10, 90], walls: [[66, 51, 84, 63]] },
+  living: { m: 19, floor: [68, 30, 71, 91, 12, 92], walls: [[23, 14, 33, 40]] },
   mess: { m: 18.5, floor: [66, 22, 78, 91, 7, 93], walls: [[25, 53, 75, 63]] },
   command: { m: 23, floor: [77, 14, 86, 91, 8, 92], walls: [] },
   gym: { m: 18.5, floor: [65, 21, 79, 91, 8, 92], walls: [[13, 30, 22, 56], [78, 30, 87, 56]] }, lab: { m: 25, floor: [74, 12, 88, 87, 8, 92], walls: [] },
@@ -1112,7 +1104,7 @@ new ResizeObserver(() => fitHealth()).observe($("#room"));
 // The app starts after the arrival animation ends (the laptop screen is white at that moment), and only appears once it has drawn.
 async function bootLaptop() {
   const f = $("#tv-main"), scr = $("#tv-screen"); if (!f) return;
-  while (moving || consoleStanding) await new Promise((r) => setTimeout(r, 60));
+  while (moving) await new Promise((r) => setTimeout(r, 60));
   if ($("#tv-main") !== f) return;
   if (!f.dataset.loaded) {
     const ready = new Promise((r) => { f.onload = r; setTimeout(r, 6000); });
@@ -1523,7 +1515,7 @@ function dragify(el, item) {
 }
 
 function hotspot(act) {
-  const map = { console: () => travelTo("command"), desk: () => (view === "room" && currentRoom === "living" ? sitAtDesk() : openDesk()), sheets: openSheets, planet: () => { go("planet"); arriveAnim(); }, exercise: openExercise, analyses: openAnalyses, tests: openTests,
+  const map = { console: () => travelTo("command"), desk: openDesk, sheets: openSheets, planet: () => { go("planet"); arriveAnim(); }, exercise: openExercise, analyses: openAnalyses, tests: openTests,
     breath: openBreath, mood: openMood, library: openLibrary, book: openBook, healthapp: openHealthApp,
     landview: () => openLandview(false), telescope: () => openLandview(true), nasatech: openNasaTech, photoboard: openPhotoBoard };
   map[act]?.();
@@ -1545,12 +1537,10 @@ function showPanel(entry) {
 }
 function openPanel(title, render, opt = {}) { stack.length = 0; showPanel({ title, render, ...opt }); }
 function rerender() { if (current && !$("#panel").hidden) { const b = $("#panel-body"); const st = b.scrollTop; if (cleanup) { cleanup(); cleanup = null; } b.innerHTML = ""; current.render(b); b.scrollTop = st; } }
-let afterClose = null;
 function closePanel() {
   if (cleanup) { cleanup(); cleanup = null; }
   $("#panel").hidden = true; $("#scrim").hidden = true; stack.length = 0; current = null;
   go(view);
-  if (afterClose) { const f = afterClose; afterClose = null; f(); }
 }
 function backPanel() { const prev = stack.pop(); if (!prev) return closePanel(); showPanel(prev); }
 function sub(title, render, opt = {}) { if (current && !$("#panel").hidden) stack.push(current); showPanel({ title, render, ...opt }); }
@@ -1791,20 +1781,6 @@ const relCh = (pp) => pp.chapters.filter((c) => c.day <= S.day);
 const unreadOf = (pp) => relCh(pp).filter((c, j) => !S.read[pp.id + j]).length;
 let BK = { book: null, view: "toc", person: null, spread: -1, ch: null };
 function openDesk(push) { opener(push)("Desk", renderDesk, { wide: true }); }
-async function sitAtDesk() {
-  if (moving) return;
-  const sc = sceneEl(), h = (roomById(currentRoom).hotspots || []).find((x) => x.act === "desk") || { x: 50, y: 60 }, K = 2.4;
-  if (!reducedMotion()) {
-    moving = true; $("#room").classList.add("walking"); sc.style.transformOrigin = `${h.x}% ${h.y - 8}%`;
-    await sc.animate([{ transform: "scale(1)" }, { transform: `scale(${K})` }], { duration: 900, easing: E_IO, fill: "forwards" }).finished;
-    moving = false;
-  }
-  afterClose = async () => {
-    if (!reducedMotion()) { moving = true; await sc.animate([{ transform: `scale(${K})` }, { transform: "scale(1)" }], { duration: 800, easing: E_IO, fill: "forwards" }).finished; }
-    unmove(sc); $("#room").classList.remove("walking"); moving = false;
-  };
-  openDesk();
-}
 function openJournalBook(state) { BK = { book: "community", view: "toc", person: null, spread: -1, ch: null, ...state }; openPanel(BK.book === "personal" ? "Personal Journal" : "Community Journal", renderOpenBook, { wide: true }); }
 function renderDesk(b) {
   const writers = PEOPLE.length + 1, news = PEOPLE.reduce((a, pp) => a + unreadOf(pp), 0);
@@ -1817,15 +1793,9 @@ function renderDesk(b) {
     <div class="desk-legend"><div><b>Personal Journal</b><span>Only you read it. +${REWARD.journal} coins a day, streak bonus.</span></div><div><b>Community Journal</b><span>Read the other crews, write your insights. +${REWARD.chapter} per chapter, +${REWARD.read} per new chapter read.</span></div></div>`;
   $$("[data-open]", b).forEach((t) => (t.onclick = () => {
     if (t.classList.contains("opening")) return;
-    const desk = b.querySelector(".desk2"), other = [...desk.querySelectorAll(".tome2")].find((x) => x !== t);
-    t.classList.add("opening");
-    if (!reducedMotion()) {
-      const dr = desk.getBoundingClientRect(), tr = t.getBoundingClientRect(), orr = other.getBoundingClientRect(), side = orr.left < tr.left ? -1 : 1;
-      other.animate([{ transform: "none", opacity: 1 }, { transform: `translateX(${side * 135}%) rotate(${side * 9}deg)`, opacity: 0 }], { duration: 560, easing: E_IN, fill: "forwards" });
-      t.animate([{ transform: "none" }, { transform: `translateX(${dr.left + dr.width / 2 - (tr.left + tr.width / 2)}px) translateY(-6px) scale(1.3)` }], { duration: 720, easing: E_IO, fill: "forwards" });
-    }
+    t.classList.add("opening"); b.querySelector(".desk2").classList.add("picked");
     const kind = t.dataset.open;
-    setTimeout(() => { BK = { book: kind, view: kind === "personal" ? "journal" : "toc", person: null, spread: -1, ch: null }; sub(kind === "personal" ? "Personal Journal" : "Community Journal", renderOpenBook, { wide: true }); }, reducedMotion() ? 0 : 760);
+    setTimeout(() => { BK = { book: kind, view: kind === "personal" ? "journal" : "toc", person: null, spread: -1, ch: null }; sub(kind === "personal" ? "Personal Journal" : "Community Journal", renderOpenBook, { wide: true }); }, reducedMotion() ? 0 : 560);
   }));
 }
 // ── page content ──
@@ -1951,14 +1921,7 @@ function turnTo(state, dir) {
   leaf.innerHTML = dir > 0 ? `<div class="lf front pg right">${oldR}</div><div class="lf back pg left">${newL}</div>` : `<div class="lf front pg left">${oldL}</div><div class="lf back pg right">${newR}</div>`;
   if (dir > 0) R.innerHTML = newR; else L.innerHTML = newL;
   spread.append(leaf);
-  const sg = dir > 0 ? -1 : 1, D = 860;
-  const cast = document.createElement("div"); cast.className = "flipcast " + (dir > 0 ? "fwd" : "bwd"); spread.append(cast);
-  cast.animate([{ opacity: 0 }, { opacity: .55, offset: .45 }, { opacity: 0 }], { duration: D, easing: "ease-in-out" });
-  leaf.animate([
-    { transform: "perspective(2200px) rotateY(0deg) translateZ(0)" },
-    { transform: `perspective(2200px) rotateY(${sg * 55}deg) translateZ(18px) skewY(${-sg * 1.2}deg)`, offset: .3 },
-    { transform: `perspective(2200px) rotateY(${sg * 120}deg) translateZ(18px) skewY(${sg * 1.2}deg)`, offset: .66 },
-    { transform: `perspective(2200px) rotateY(${sg * 180}deg) translateZ(0)` }], { duration: D, easing: "cubic-bezier(.45,.05,.25,1)" }).onfinish = () => { leaf.remove(); cast.remove(); paintSpread(sp); };
+  leaf.animate([{ transform: "rotateY(0deg)" }, { transform: `rotateY(${dir > 0 ? -180 : 180}deg)` }], { duration: 720, easing: "cubic-bezier(.4,.1,.25,1)" }).onfinish = () => { leaf.remove(); paintSpread(sp); };
 }
 function bindBook(b) {
   const root = $("#book2", b);

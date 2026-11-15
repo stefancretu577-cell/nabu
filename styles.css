@@ -1684,11 +1684,9 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 @keyframes lapSpin { to { transform: rotate(360deg); } }
 .tv-host.laptop:has(.tv-screen.boot) .lap-boot { opacity: 1; transition-delay: .5s; }
 .pj-count b { color: #b77a12; } .pj-count.ready { color: #1f7a6a; font-weight: 600; } .pj-count.ready b { color: #1f7a6a; }
+
 .sh-bar { display: block; height: 6px; margin: 8px 2px 0; border-radius: 99px; background: rgba(0,0,0,.1); overflow: hidden; } .sh-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e2a63b, #f3c968); border-radius: inherit; }
 .dt-fixed { font: 600 11px var(--font-body); color: #9fb0c8; padding: 0 6px; }
-/* walking through a door / standing in the study: hide the room buttons while the camera moves */
-.room.walking .room-ui, .room.walking #room-hotspots, .room.standing .room-ui, .room.standing .kb-hint { opacity: 0; pointer-events: none; transition: opacity .2s; }
-.room.walking .room-caption { opacity: 0; }
 /* living-room TV: health summary */
 .ws-health .wsh { display: flex; align-items: center; gap: 22px; margin-top: 10px; }
 .wsh-ring { width: 118px; height: 118px; flex: none; }
@@ -1718,9 +1716,3 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .pin:hover .pin-x { opacity: 1; }
 .pin.add { display: grid; place-items: center; align-content: center; gap: 4px; min-height: 140px; border: 2px dashed rgba(253,250,243,.8); background: rgba(253,250,243,.15); color: #fdfaf3; cursor: pointer; transform: none; }
 .pin.add span { font-size: 34px; line-height: 1; } .pin.add small { font: 600 13px var(--font-body); }
-/* flip-book page turn: page lift shading over the whole turn and a cast shadow on the page below */
-.lf::after { animation-duration: .86s; }
-.leaf .lf.front { box-shadow: 0 0 22px rgba(60,35,10,.18); }
-.flipcast { position: absolute; top: 0; bottom: 0; width: 50%; pointer-events: none; z-index: 4; }
-.flipcast.fwd { left: 50%; background: linear-gradient(90deg, rgba(40,22,6,.35), rgba(40,22,6,.08) 35%, transparent 70%); }
-.flipcast.bwd { left: 0; background: linear-gradient(270deg, rgba(40,22,6,.35), rgba(40,22,6,.08) 35%, transparent 70%); }
