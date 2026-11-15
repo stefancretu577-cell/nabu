@@ -1,0 +1,66 @@
+<!doctype html>
+<!--
+  Body twin - self-contained build. Monitoring visualization, not a diagnostic or medical device.
+  3D models: BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution 4.0 International (CC BY 4.0) | Derived from Z-Anatomy (CC BY-SA 4.0), itself derived from BodyParts3D (c) DBCLS. Licensed CC BY-SA 4.0. (CC BY-SA 4.0)
+  Keep this credit (it is also shown in the viewer's "About" panel).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Body twin</title>
+<style>html, body { margin: 0; height: 100%; background: #0c1014; overflow: hidden; } body-twin { display: block; width: 100%; height: 100%; }</style>
+</head>
+<body>
+<body-twin id="twin" src="./models" packs="bp3d,za"></body-twin>
+<script>
+/* Nabu bridge. Status per body part comes from Nabu Health (localStorage "nabu.twin"); in ?embed mode the page also
+   talks to the Health app around it: a part picked here opens its card there, a zone picked there flies the camera here. */
+(function () {
+  var q = new URLSearchParams(location.search), tw = document.getElementById('twin'), embed = q.has('embed');
+  var sc = q.get('scenario'); if (sc) tw.setAttribute('scenario', sc);
+  if (embed) document.documentElement.className = 'embed';
+  var MAP = { normal: 'ok', watch: 'watch', alert: 'alert' }, ready = false;
+  function nabuParts() { try { return JSON.parse(localStorage.getItem('nabu.twin') || 'null'); } catch (e) { return null; } }
+  function applyStatus() {
+    var P = nabuParts(); if (!ready || !P || !tw.viewer) return;
+    tw.health.stop();                                   // Nabu gives the status; the built-in demo clock would reset it
+    for (var id in P) { var x = P[id], st = MAP[x.status] || 'nodata';
+      tw.viewer.setPartStatus(id, st); tw.labels.setContent(id, { status: st, value: x.value || '', note: x.note || '' }); }
+    tw.viewer.setStatusTint(true); tw.viewer.invalidate();
+  }
+  function fly(part) {
+    var v = tw.viewer; if (!v) return;
+    if (!part) { v.select(null); v.resetView(); return; }
+    var en = tw.labels && tw.labels.entries.get('part:' + part);
+    var id = en ? en.structure.meta.id : (v.store.structures.get(part) ? part : null);
+    if (id) v.select(id, { reveal: true }); else { v.select(null); v.resetView(); }
+  }
+  var pendingPart;
+  tw.addEventListener('bt-ready', function () {
+    ready = true;
+    if (embed) {
+      var st = document.createElement('style');
+      st.textContent = '.left,.search{display:none!important}.tools [data-act=labels],.tools [data-act=quality]{display:none!important}.tools{top:auto!important;bottom:8px!important;right:8px!important;left:auto!important;transform:scale(.86);transform-origin:100% 100%}';
+      tw.shadowRoot.append(st);
+      tw.viewer.uiInsets.left = 0; tw.viewer.setLowPower(true);
+      var qb = tw.shadowRoot.querySelector('.tools [data-act=quality]'); if (qb && qb.getAttribute('aria-pressed') === 'true') qb.click();
+      tw.viewer.resetView(0);
+    }
+    applyStatus(); if (pendingPart !== undefined) fly(pendingPart);
+    if (embed) parent.postMessage({ type: 'bt:ready' }, location.origin);
+  });
+  tw.addEventListener('bt-select', function (e) { var m = e.detail; if (embed) parent.postMessage({ type: 'bt:selected', id: m && m.id, layer: m && m.layer }, location.origin); });
+  addEventListener('storage', function (e) { if (e.key === 'nabu.twin') applyStatus(); });
+  addEventListener('message', function (e) {
+    if (e.origin !== location.origin) return; var d = e.data || {};
+    if (d.type === 'bt:status') applyStatus();
+    if (d.type === 'bt:part') { if (ready) fly(d.part); else pendingPart = d.part; }
+    if (d.type === 'bt:view' && tw.viewer) { tw.viewer.select(null); tw.viewer.resetView(); }
+  });
+})();
+</script>
+<script type="module" src="./twin.js"></script>
+
+</body>
+</html>

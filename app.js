@@ -2839,7 +2839,7 @@ go("planet");
 
 /* idle warm-up: decode furniture sprites and the hub room pictures in quiet moments, one at a time */
 (function warmUp() {
-  const urls = ["assets/skeleton.webp", ...ROOMS.filter((r) => r.module === "hub").map(imgUrl), ...Object.keys(ITEMS).map(itemImg)];
+  const urls = [...ROOMS.filter((r) => r.module === "hub").map(imgUrl), ...Object.keys(ITEMS).map(itemImg)];
   const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
   const next = () => { const u = urls.shift(); if (!u) return; idle(() => { if (moving) { urls.unshift(u); return setTimeout(next, 600); } const im = new Image(); im.src = u; (im.decode ? im.decode() : Promise.resolve()).catch(() => {}).then(() => setTimeout(next, 60)); }, { timeout: 2000 }); };
   setTimeout(next, 2500);
