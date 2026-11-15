@@ -50,7 +50,7 @@ const modById = (id) => MODULES.find((m) => m.id === id);
 const ROOMS = [
   { id: "bedroom", module: "hub", name: "Bedroom", img: "room-bedroom", empty: true, doors: { left: [11.2, 52], right: [88.3, 52] }, hotspots: [],
     slots: [{ id: "bed", x: 38, y: 86, items: ["bed"] }, { id: "ward", x: 70, y: 68, items: ["wardrobe", "bookshelf"] }, { id: "night", x: 58, y: 77, items: ["nightstand", "lamp"] }, { id: "wall", x: 30, y: 46, items: ["painting", "poster", "wallshelf"] }, { id: "floor", x: 50, y: 95, items: ["rug"] }] },
-  { id: "living", module: "hub", name: "Living quarters", img: "room-living", hotspots: [{ x: 15, y: 57, label: "Desk · Write", act: "desk", ic: "pen" }, { x: 83.4, y: 52, label: "Wall sheets · Tasks", act: "sheets", ic: "check" }, { x: 49.8, y: 40, label: "Window · Planet", act: "planet", ic: "globe" }],
+  { id: "living", module: "hub", name: "Living quarters", img: "room-living", doors: { left: [9, 52], right: [91, 52] }, hotspots: [{ x: 22, y: 60, label: "Desk · Write", act: "desk", ic: "pen" }, { x: 76, y: 50, label: "Wall sheets · Tasks", act: "sheets", ic: "check" }, { x: 50, y: 40, label: "Window · Look out", act: "landview", ic: "globe" }],
     slots: [{ id: "center", x: 52, y: 86, items: ["sofa", "armchair", "beanbag"] }, { id: "low", x: 38, y: 92, items: ["coffeetable", "rug"] }] },
   { id: "command", module: "hub", name: "Health console", img: "room-command", command: true, noDrift: true, hotspots: [], slots: [] },
   { id: "mess", module: "hub", name: "Mess hall", img: "room-mess", empty: true, doors: { left: [10.3, 52], right: [90, 52] }, hotspots: [],
@@ -58,8 +58,8 @@ const ROOMS = [
   { id: "gym", module: "gym", name: "Plant lounge", img: "room-plants", empty: true, hotspots: [], slots: [] },
   { id: "lab", module: "lab", name: "Medical lab", img: "room-lab", hotspots: [{ x: 70, y: 58, label: "Medical results", act: "analyses", ic: "flask" }, { x: 50, y: 30, label: "Nabu Health", act: "healthapp", ic: "check" }, { x: 32, y: 38, label: "Cognitive tests", act: "tests", ic: "brain" }], slots: [] },
   { id: "green", module: "green", name: "Greenhouse", img: "room-green", hotspots: [{ x: 82, y: 70, label: "Bench · Breathing", act: "breath", ic: "moon" }, { x: 45, y: 57, label: "Mood check-in", act: "mood", ic: "brain" }], slots: [] },
-  { id: "lounge", module: "lounge", name: "Observation lounge", img: "room-lounge", hotspots: [{ x: 19, y: 40, label: "Shelf · Library", act: "library", ic: "book" }, { x: 80, y: 56, label: "Telescope · Planet", act: "planet", ic: "globe" }], slots: [] },
-  { id: "comms", module: "comms", name: "Comms workshop", img: "room-comms", hotspots: [{ x: 44, y: 62, label: "Desk · My book", act: "book", ic: "pen" }, { x: 68, y: 39, label: "Board · Community", act: "library", ic: "book" }, { x: 17, y: 52, label: "Radio · Planet", act: "planet", ic: "globe" }], slots: [] },
+  { id: "lounge", module: "lounge", name: "Observation lounge", img: "room-lounge", hotspots: [{ x: 19, y: 40, label: "Shelf · NASA tech", act: "nasatech", ic: "book" }, { x: 80, y: 56, label: "Telescope · Look out", act: "telescope", ic: "globe" }], slots: [] },
+  { id: "comms", module: "comms", name: "Comms workshop", img: "room-comms", hotspots: [{ x: 44, y: 62, label: "Desk · My book", act: "book", ic: "pen" }, { x: 68, y: 39, label: "Board · Photos", act: "photoboard", ic: "book" }, { x: 17, y: 52, label: "Radio · Planet", act: "planet", ic: "globe" }], slots: [] },
 ];
 const roomById = (id) => ROOMS.find((r) => r.id === id);
 const imgUrl = (r) => `assets/${r.img}.webp`;
@@ -207,6 +207,8 @@ function freshState() {
   s.daily = newDaily(1);
   return s;
 }
+// furniture taken out of a room goes to storage and can be placed again for free
+function store(k) { S.inventory[k] = (S.inventory[k] || 0) + 1; }
 function newDaily(day) { return { day, norma: {}, normaBonus: false, got: {}, exerciseCoins: 0, readCoins: 0, goodSets: 0 }; }
 function load() { try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch {} return null; }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
@@ -220,6 +222,9 @@ let S = TEST_MODE ? (() => { const old = load(); return old && old.test ? old : 
 // older saves: drop the removed trading data and any decor whose item no longer exists
 delete S.token; delete S.others; delete S.podium;
 for (const k in S.decor) S.decor[k] = (S.decor[k] || []).filter((d) => ITEMS[d.item]).map((d) => { if (d.r != null) { d.a = [0, 1, 7, 4][d.r] || 0; delete d.r; } return d; });
+S.inventory ||= {};
+// the mess hall comes with its table and chairs: they can be moved, not removed
+if (!(S.decor.mess || []).some((d) => d.fixed && d.item === "dining")) (S.decor.mess ||= []).unshift({ item: "dining", x: 50, y: 84, s: 1, a: 0, fixed: true });
 
 /* ───────────────────────── wellness (only the astronaut sees this) ───────────────────────── */
 function wellness() {
@@ -514,26 +519,18 @@ async function enterRoom(id) {
   if (moving) return;
   const m = modById(id); const r = roomById(m.room);
   if (view !== "base") { go("room", r.id); arriveAnim(); return; }
-  if (id === "hub") {
-    const title = `<div class="ey">${esc(m.name)} · ${esc(ME.base)}</div><div class="nm">${esc(r.name)}</div>`;
-    // one continuous shot: from the sky view down through the hub's skylight into the study, to the desk, and the laptop is set down and opened
-    if (!reducedMotion()) {
-      $("#base-markers").style.opacity = 0;
-      const ok = await playClip({ clip: "base-console", fromFrame: $("#base"), title, show: () => { go("room", "command"); $("#base-markers").style.opacity = ""; }, toFrameSel: "#room" });
-      if (ok) return; $("#base-markers").style.opacity = "";
-    }
-  }
-  if (reducedMotion()) { go("room", r.id); return; }
+  if (reducedMotion()) { go("room", r.id); if (r.id === "command") setStanding(false); return; }
   moving = true;
   const sc = $("#base .scene"); $("#base-markers").style.opacity = 0; $("#base").classList.add("zooming");
   sc.style.animation = "none"; sc.style.transformOrigin = `${m.x}% ${m.y}%`;
   await sc.animate([{ transform: "scale(1)", filter: "brightness(1)" }, { transform: "scale(5.5)", filter: "brightness(1.35)" }], { duration: 430, easing: "cubic-bezier(.55,0,.8,.3)", fill: "forwards" }).finished;
   const g = ghostOf($("#base"));
   sc.getAnimations().forEach((x) => x.cancel()); sc.style.animation = ""; sc.style.transformOrigin = ""; $("#base-markers").style.opacity = ""; $("#base").classList.remove("zooming");
-  go("room", r.id);
+  go("room", r.id); if (r.id === "command") setStanding(true);
   g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: "ease-out", fill: "forwards" }).onfinish = () => g.remove();
   await $("#room .scene").animate([{ transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 420, easing: E_OUT }).finished;
   moving = false;
+  if (r.id === "command") await sitDown();
 }
 
 /* Hover info cards, like an architecture showcase. */
@@ -553,8 +550,8 @@ function go(v, room, focus, quiet) {
   $$(".view").forEach((el) => (el.hidden = true));
   $("#view-" + v).hidden = false;
   if (v === "planet") { renderPlanet(); primeClip("planet-base"); }
-  if (v === "base") { renderBase(); primeClip("base-console"); }
-  if (v === "room") { renderRoom(); if (currentRoom === "command") { primeClip("door-command-living"); primeClip("console-out"); } else primeClip(currentRoom === "living" ? "door-living-command" : "console-in"); const i = HUB.indexOf(currentRoom); if (i >= 0) { primeClip(`door-${currentRoom}-${HUB[(i + 1) % HUB.length]}`); primeClip(`door-${currentRoom}-${HUB[(i + HUB.length - 1) % HUB.length]}`); } }
+  if (v === "base") { renderBase(); primeClip("lap-open"); }
+  if (v === "room") { renderRoom(); primeClip(currentRoom === "command" ? "lap-close" : "lap-open"); const i = HUB.indexOf(currentRoom); if (i >= 0) { primeClip(`door-${currentRoom}-${HUB[(i + 1) % HUB.length]}`); primeClip(`door-${currentRoom}-${HUB[(i + HUB.length - 1) % HUB.length]}`); } }
   if (v === "corridor") { openCorridorView(focus, quiet); primeClip("hatch-" + ROOMS[corrIdx].id); }
   $("#stage").scrollTop = 0;
 }
@@ -624,7 +621,8 @@ function renderRoom(arrive) {
   const r = roomById(currentRoom);
   $("#room-name").textContent = r.name;
   const frame = $("#room"), scene = $("#room .scene");
-  frame.classList.toggle("tvroom", !!r.tv); frame.classList.toggle("cmdroom", !!r.command); frame.classList.remove("lapzoom"); scene.classList.toggle("still", !!r.noDrift);
+  frame.classList.toggle("tvroom", !!r.tv); frame.classList.toggle("cmdroom", !!r.command); frame.classList.remove("lapzoom");
+  if (!r.command && consoleStanding) { consoleStanding = false; frame.classList.remove("standing"); $("#wall-ui").style.visibility = ""; } scene.classList.toggle("still", !!r.noDrift);
   const img = $("#room-img"); img.src = imgUrl(r); img.alt = "Inside the " + r.name;
   img.style.filter = `brightness(${wellness().brightness})`;
   const light = S.light[r.id] || "warm";
@@ -677,28 +675,12 @@ function renderRoom(arrive) {
 function stepRoom(d) { if (HUB.includes(currentRoom)) hubStep(d); }
 /* ── moving around ──
    Hub rooms: walk through the door into the neighbouring room (a clip per door). Modules: back to the base and in again. */
-const HUB = ["bedroom", "living", "mess"];
-async function hubStep(d) {
-  if (moving) return;
-  const i = HUB.indexOf(currentRoom); if (i < 0) return;
-  const to = HUB[(i + d + HUB.length) % HUB.length];
-  const ok = await playClip({ clip: `door-${currentRoom}-${to}`, fromFrame: $("#room"), show: () => go("room", to), toFrameSel: "#room" });
-  if (!ok) slideRooms(to, d);
-}
+const HUB = ["bedroom", "living", "command", "mess"];
 // fallback when a door clip is missing: a quick sideways move, no blur
-function slideRooms(to, d) {
-  const g = ghostLite($("#room")); go("room", to);
-  g.animate([{ transform: "none", opacity: 1 }, { transform: `translateX(${-18 * d}%)`, opacity: 0 }], { duration: 280, easing: E_IN, fill: "forwards" }).onfinish = () => g.remove();
-  $("#room .scene").animate([{ transform: `translateX(${18 * d}%)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 340, delay: 40, easing: E_OUT, fill: "backwards" });
-}
 // Leaving a room or module: the camera pulls back up out of the roof and you are above the base again.
 async function leaveToBase() {
   if (moving) return;
-  if (currentRoom === "command" && !reducedMotion()) {
-    await unzoomLaptop();
-    const ok = await playClip({ clip: "console-out", fromFrame: $("#room"), show: () => { go("base"); }, toFrameSel: "#base", rate: 1 });
-    if (ok) return;
-  }
+  if (currentRoom === "command") await standUp();
   const m = modById(roomById(currentRoom).module);
   const g = ghostLite($("#room")); go("base");
   const sc = $("#base .scene");
@@ -707,65 +689,96 @@ async function leaveToBase() {
   g.animate([{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.6)", opacity: 0 }], { duration: 300, easing: E_IN, fill: "forwards" }).onfinish = () => { g.remove(); sc.style.transformOrigin = ""; };
 }
 // From one room to another anywhere (filmstrip): through the hub doors, or up to the base and down into the module.
+// Straight to any room from the room line: the current room fades back, the new one settles in, in the same frame.
+/* Into the control room: the room you are in rushes towards you and dissolves into the glow of the monitors,
+   which then settle in front of you and power on. Out of it: the screens collapse to a line like an old monitor,
+   and the room you go to opens up behind them. */
+/* Moving between rooms of the hub happens through the doors drawn in the pictures: the camera walks to the door,
+   through it, and arrives at the matching door of the next room, then steps back to see the room. Only the picture
+   moves (a transform), so furniture stays where it is and nothing ever goes outside the base. Pairs that have a
+   filmed door clip (bedroom <-> mess hall) use it. The health console is a study: you stand in it, walk to the desk,
+   sit, and the laptop is set down; when you leave, the laptop closes and the view pulls back from the desk. */
+const DOORS = { bedroom: { l: [11.2, 52], r: [88.3, 52] }, living: { l: [9, 52], r: [91, 52] }, mess: { l: [10.3, 52], r: [90, 52] }, command: { l: [5, 52], r: [95, 52] } };
+const DESK = [50, 56], DESK_K = 2.6;
+let consoleStanding = false;
+function setStanding(on) {
+  consoleStanding = on;
+  const img = $("#room-img"); if (img) img.src = on ? "assets/room-study.webp" : imgUrl(roomById("command"));
+  $("#wall-ui").style.visibility = on ? "hidden" : ""; $("#room").classList.toggle("standing", on);
+}
+const sceneEl = () => $("#room .scene");
+const unmove = (el) => { el.getAnimations().forEach((a) => a.cancel()); el.style.transformOrigin = ""; };
+async function sitDown() {
+  const sc = sceneEl(); moving = true;
+  sc.style.transformOrigin = `${DESK[0]}% ${DESK[1]}%`;
+  await sc.animate([{ transform: "scale(1)" }, { transform: `scale(${DESK_K})` }], { duration: reducedMotion() ? 0 : 800, easing: E_IO, fill: "forwards" }).finished;
+  moving = false;
+  const done = () => { unmove(sc); setStanding(false); };
+  const ok = await playClip({ clip: "lap-open", fromFrame: $("#room"), show: done, toFrameSel: "#room" });
+  if (!ok) done();
+}
+async function standUp() {
+  await unzoomLaptop();
+  const sc = sceneEl();
+  const show = () => { setStanding(true); sc.style.transformOrigin = `${DESK[0]}% ${DESK[1]}%`; sc.animate([{ transform: `scale(${DESK_K})` }, { transform: `scale(${DESK_K})` }], { duration: 1, fill: "forwards" }); };
+  const ok = await playClip({ clip: "lap-close", fromFrame: $("#room"), show, toFrameSel: "#room" });
+  if (!ok) show();
+  moving = true;
+  await sc.animate([{ transform: `scale(${DESK_K})` }, { transform: "scale(1)" }], { duration: reducedMotion() ? 0 : 800, easing: E_IO, fill: "forwards" }).finished;
+  unmove(sc); moving = false;
+}
+async function preload(id) { try { const im = new Image(); im.src = id === "command" ? "assets/room-study.webp" : imgUrl(roomById(id)); await im.decode(); } catch {} }
+async function doorWalk(to, d) {
+  const from = currentRoom;
+  const exit = (DOORS[from] || {})[d > 0 ? "r" : "l"] || [d > 0 ? 92 : 8, 52], entry = (DOORS[to] || {})[d > 0 ? "l" : "r"] || [d > 0 ? 8 : 92, 52];
+  if (from === "command") await standUp();
+  if (reducedMotion()) { go("room", to); if (to === "command") setStanding(false); return; }
+  moving = true; await preload(to);
+  let sc = sceneEl(); sc.style.transformOrigin = `${exit[0]}% ${exit[1]}%`;
+  $("#room").classList.add("walking");
+  await sc.animate([{ transform: "scale(1)", opacity: 1 }, { offset: .7, opacity: .85 }, { transform: "scale(2.3)", opacity: 0 }], { duration: 620, easing: E_IN, fill: "forwards" }).finished;
+  unmove(sc);
+  go("room", to); if (to === "command") setStanding(true);
+  sc = sceneEl(); sc.style.transformOrigin = `${entry[0]}% ${entry[1]}%`;
+  await sc.animate([{ transform: "scale(2.3)", opacity: 0 }, { offset: .3, opacity: .85 }, { transform: "scale(1)", opacity: 1 }], { duration: 820, easing: E_OUT, fill: "backwards" }).finished;
+  sc.style.transformOrigin = ""; $("#room").classList.remove("walking");
+  moving = false;
+  if (to === "command") await sitDown();
+}
+async function hubStep(d) {
+  if (moving) return;
+  const i = HUB.indexOf(currentRoom); if (i < 0) return;
+  const to = HUB[(i + d + HUB.length) % HUB.length];
+  const filmed = (currentRoom === "bedroom" && to === "mess") || (currentRoom === "mess" && to === "bedroom");
+  if (filmed && await playClip({ clip: `door-${currentRoom}-${to}`, fromFrame: $("#room"), show: () => go("room", to), toFrameSel: "#room" })) return;
+  return doorWalk(to, d);
+}
+// From one room to another anywhere: next door through the door, otherwise a soft cut in the same frame.
 async function travelTo(id) {
   if (moving || id === currentRoom) return;
   const target = roomById(id); if (!S.built[target.module]) return openBuild(modById(target.module));
-  if (id === "command" || currentRoom === "command") return consoleSwap(id);
   const a = HUB.indexOf(currentRoom), b = HUB.indexOf(id);
   if (a >= 0 && b >= 0) { const n = HUB.length, fwd = (b - a + n) % n; if (fwd === 1 || fwd === n - 1) return hubStep(fwd === 1 ? 1 : -1); }
   jumpTo(id);
 }
-// Straight to any room from the room line: the current room fades back, the new one settles in, in the same frame.
 async function jumpTo(id) {
-  if (reducedMotion()) { go("room", id); return; }
-  moving = true;
-  // decode the next room's picture first, so the swap never stalls a frame
-  try { const im = new Image(); im.src = imgUrl(roomById(id)); await im.decode(); } catch {}
-  const g = ghostLite($("#room")); go("room", id);
+  if (currentRoom === "command") await standUp();
+  if (reducedMotion()) { go("room", id); if (id === "command") setStanding(false); return; }
+  moving = true; await preload(id);
+  const g = ghostLite($("#room")); go("room", id); if (id === "command") setStanding(true);
   g.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.97)" }], { duration: 240, easing: "ease-in", fill: "forwards" }).onfinish = () => g.remove();
-  $("#room .scene").animate([{ opacity: 0, transform: "scale(1.04)" }, { opacity: 1, transform: "scale(1)" }], { duration: 340, delay: 60, easing: E_OUT, fill: "backwards" }).onfinish = () => (moving = false);
-}
-/* Into the control room: the room you are in rushes towards you and dissolves into the glow of the monitors,
-   which then settle in front of you and power on. Out of it: the screens collapse to a line like an old monitor,
-   and the room you go to opens up behind them. */
-async function consoleSwap(id) {
-  if (moving) return;
-  if (id === "command" && !reducedMotion()) {
-    const ok = await playClip({ clip: currentRoom === "living" ? "door-living-command" : "console-in", fromFrame: $("#room"), show: () => go("room", "command"), toFrameSel: "#room", rate: 1 });
-    if (ok) return;
-  }
-  if (id !== "command" && currentRoom === "command" && !reducedMotion()) {
-    await unzoomLaptop();
-    const ok = await playClip({ clip: id === "living" ? "door-command-living" : "console-out", fromFrame: $("#room"), show: () => go("room", id), toFrameSel: "#room", rate: 1 });
-    if (ok) return;
-  }
-  moving = true; const room = $("#room");
-  if (reducedMotion()) { go("room", id); moving = false; return; }
-  if (id === "command") {
-    const g = ghostLite(room); go("room", "command");
-    const sc = $("#room .scene");
-    g.animate([{ transform: "scale(1)", filter: "brightness(1) blur(0)", opacity: 1 }, { transform: "scale(1.9)", filter: "brightness(1.6) blur(6px)", opacity: 0 }], { duration: 650, easing: "cubic-bezier(.55,0,.75,.3)", fill: "forwards" }).onfinish = () => g.remove();
-    await sc.animate([{ transform: "scale(.82)", filter: "brightness(2.2) blur(10px)", opacity: 0 }, { offset: .45, opacity: 1 }, { transform: "scale(1)", filter: "brightness(1) blur(0)", opacity: 1 }], { duration: 900, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }).finished;
-  } else {
-    if (screenZoom) setScreenZoom(false);
-    const sc = $("#room .scene"); sc.style.transformOrigin = "50% 50%"; $("#wall-ui").style.transformOrigin = "50% 50%";
-    $("#wall-ui").animate([{ transform: "scaleY(1)", opacity: 1 }, { offset: .55, transform: "scaleY(.012)", opacity: 1 }, { transform: "scaleY(.012) scaleX(0)", opacity: 0 }], { duration: 520, easing: "cubic-bezier(.5,0,.8,.3)", fill: "forwards" });
-    await sc.animate([{ transform: "scaleY(1)", filter: "brightness(1)" }, { offset: .55, transform: "scaleY(.012) scaleX(1)", filter: "brightness(3)" }, { transform: "scaleY(.012) scaleX(0)", filter: "brightness(4)" }], { duration: 520, easing: "cubic-bezier(.5,0,.8,.3)", fill: "forwards" }).finished;
-    const flash = document.createElement("div"); flash.className = "crt-line"; room.append(flash);
-    go("room", id); sc.getAnimations().forEach((a) => a.cancel()); $("#wall-ui").getAnimations().forEach((a) => a.cancel()); sc.style.transformOrigin = "";
-    flash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }).onfinish = () => flash.remove();
-    await $("#room .scene").animate([{ transform: "scale(1.12)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 650, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }).finished;
-  }
+  await sceneEl().animate([{ opacity: 0, transform: "scale(1.04)" }, { opacity: 1, transform: "scale(1)" }], { duration: 340, delay: 60, easing: E_OUT, fill: "backwards" }).finished;
   moving = false;
+  if (id === "command") await sitDown();
 }
 // The room line: every room of the base on one line, hub rooms first, then the modules.
 function renderRoomLine() {
   const box = $("#roomline"); if (!box) return;
-  const order = ["command", ...HUB, ...MODULES.filter((m) => m.id !== "hub").map((m) => m.room)];
+  const order = ["command", ...HUB.filter((x) => x !== "command"), ...MODULES.filter((m) => m.id !== "hub").map((m) => m.room)];
   box.innerHTML = `<span class="rl-group">Central hub</span>` + order.map((id, k) => {
     const r = roomById(id), m = modById(r.module), st = S.built[m.id] ? "open" : moduleState(m);
     const lab = st === "open" ? r.name : st === "available" ? `${m.cost} coins` : `Day ${m.day}`;
-    return `${k === HUB.length + 1 ? `<span class="rl-sep"></span><span class="rl-group">Modules</span>` : ""}<button class="rl-stop ${st} ${id === currentRoom ? "on" : ""}" data-room="${id}" title="${st === "open" ? esc(r.name) : "Undiscovered module"}">
+    return `${k === HUB.length ? `<span class="rl-sep"></span><span class="rl-group">Modules</span>` : ""}<button class="rl-stop ${st} ${id === currentRoom ? "on" : ""}" data-room="${id}" title="${st === "open" ? esc(r.name) : "Undiscovered module"}">
       <i>${st === "open" ? "" : `<img src="assets/lock.webp" alt="">`}</i><span>${esc(lab)}</span></button>`;
   }).join("");
   $$("#roomline .rl-stop").forEach((b) => (b.onclick = () => travelTo(b.dataset.room)));
@@ -878,18 +891,18 @@ function unlockHatch() {
 // The wall screen above the desk: a small mission clock (day, phase, light delay to Earth, next private talk).
 function renderWallScreen() {
   const ws = $("#wallscreen"); if (!ws) return;
-  const delay = (4 + 16 * (0.5 - 0.5 * Math.cos((S.day / MISSION_DAYS) * Math.PI))).toFixed(1);
-  ws.innerHTML = `<div class="ws-in"><div class="ws-title"><span>Mission clock</span><span>${esc(ME.ship)}</span></div>
-    <div class="ws-grid"><span class="h">Day</span><span class="h r"></span><span class="h r">${S.day} / ${MISSION_DAYS}</span>
-    <span>Phase</span><span class="r"></span><span class="r">${esc(phaseOf(S.day))}</span>
-    <span>Delay</span><span class="r"></span><span class="r">${delay} min</span>
-    <span>Talk</span><span class="r"></span><span class="r">in ${14 - ((S.day - 1) % 14)} d</span></div>
+  const val = (id) => { const m = DAILY.find((x) => x.id === id); return m ? dailyValue(m) : null; };
+  const hr = val("hr"), sl = val("sleep"), co2 = val("co2");
+  const score = 82, ring = 2 * Math.PI * 30;
+  ws.innerHTML = `<div class="ws-in ws-health"><div class="ws-title"><span>Nabu Health</span><span>day ${S.day}</span></div>
+    <div class="wsh"><svg viewBox="0 0 76 76" class="wsh-ring"><circle cx="38" cy="38" r="30" class="bg"/><circle cx="38" cy="38" r="30" class="fg" stroke-dasharray="${ring}" stroke-dashoffset="${ring * (1 - score / 100)}"/><text x="38" y="44">${score}</text></svg>
+      <div class="wsh-rows"><span>Heart</span><b>${hr != null ? Math.round(hr) : "–"} <i>bpm</i></b><span>Sleep</span><b>${sl != null ? sl.toFixed(1) : "–"} <i>h</i></b><span>Cabin CO₂</span><b>${co2 != null ? co2.toFixed(1) : "–"} <i>mmHg</i></b></div></div>
     <div class="ws-foot">tap to open the Health console ›</div></div><i class="ws-scan"></i><i class="ws-glare"></i>`;
 }
 // The table is laid out flat (WS_W × WS_H) and projected onto the four corners of the glass in the photo,
 // so it follows the wall's perspective instead of floating on top of it.
 const WS_W = 400, WS_H = 320;
-const WS_QUAD = [[6.64, 21.55], [22.11, 26.38], [22.27, 43.37], [6.56, 43.92]]; // tl, tr, br, bl in % of the room image
+const WS_QUAD = [[17.0, 28.1], [27.6, 29.4], [27.7, 43.1], [17.0, 44.0]]; // tl, tr, br, bl in % of the room image
 function homography(w, h, q) {
   const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
   const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
@@ -910,7 +923,7 @@ function placeWallScreen() {
 const ZONES = {
   // m = % of the frame height that one metre takes at the back edge of the floor (measured from floor-to-ceiling, 2.5 m)
   bedroom: { m: 18.5, floor: [66, 22, 78, 91, 7, 93], walls: [[24, 20, 40, 50], [60, 20, 76, 50]] },
-  living: { m: 19, floor: [68, 30, 71, 91, 12, 92], walls: [[23, 14, 33, 40]] },
+  living: { m: 19, floor: [69, 18, 84, 91, 10, 90], walls: [[66, 51, 84, 63]] },
   mess: { m: 18.5, floor: [66, 22, 78, 91, 7, 93], walls: [[25, 53, 75, 63]] },
   command: { m: 23, floor: [77, 14, 86, 91, 8, 92], walls: [] },
   gym: { m: 18.5, floor: [65, 21, 79, 91, 8, 92], walls: [[13, 30, 22, 56], [78, 30, 87, 56]] }, lab: { m: 25, floor: [74, 12, 88, 87, 8, 92], walls: [] },
@@ -990,14 +1003,14 @@ function selectDecor(el, d) {
   const turn = ROT3D.has(d.item)
     ? `<button data-t="ccw" title="Turn left 45° (Shift+R)">⟲</button><span class="dt-ang">${angleOf(d) * 45}°</span><button data-t="cw" title="Turn right 45° (R)">⟳</button>`
     : `<button data-t="cw" title="Flip (R)">⇋<span>Flip</span></button>`;
-  t.innerHTML = `<b>${esc(ITEMS[d.item].name)}</b>${turn}<button data-t="small" title="Smaller">−</button><button data-t="big" title="Bigger">+</button><button data-t="del" class="del" title="Put away">✕</button>`;
+  t.innerHTML = `<b>${esc(ITEMS[d.item].name)}</b>${turn}<button data-t="small" title="Smaller">−</button><button data-t="big" title="Bigger">+</button>${d.fixed ? `<span class="dt-fixed" title="Built into the room">built-in</span>` : `<button data-t="del" class="del" title="Put away in storage">✕</button>`}`;
   t.addEventListener("pointerdown", (e) => e.stopPropagation());
   t.addEventListener("click", (e) => {
     const k = e.target.closest("[data-t]")?.dataset.t; if (!k) return;
     if (k === "cw" || k === "ccw") return turnDecor(el, d, k === "cw" ? 1 : -1);
     if (k === "small" || k === "big") { d.s = clamp((d.s || 1) + (k === "big" ? 0.1 : -0.1), 0.7, 1.4); clampPlace(currentRoom, d); el.style.cssText += ";" + sizeCss(currentRoom, d); save(); return selectDecor(el, d); }
     if (k === "del") { const bt = e.target.closest("[data-t]"); if (!bt.classList.contains("sure")) { bt.classList.add("sure"); bt.innerHTML = "Put away?"; return; }
-      const list = S.decor[currentRoom]; list.splice(list.indexOf(d), 1); save(); deselectDecor(); renderDecor(); toast(`${ITEMS[d.item].name} put away.`); }
+      if (d.fixed) return; const list = S.decor[currentRoom]; list.splice(list.indexOf(d), 1); store(d.item); save(); deselectDecor(); renderDecor(); toast(`${ITEMS[d.item].name} is in your storage. Place it again from the Market, for free.`); }
   });
   box.append(t);
 }
@@ -1059,7 +1072,7 @@ function renderTV(r) {
 // the console: a huge TV with the Nabu Health app (2/3 of the picture), a tall TV with the data of the day, a keyboard on the desk
 // the laptop on the desk: its screen is most of the picture, and it shows only the Nabu Health app
 const CMD = { screen: { left: 14.807, top: 6.624, width: 70.35, height: 71.875 }, daily: { left: 0, top: 0, width: 0, height: 0 } };
-const CHAPTERS = [["today", "Today"], ["vitals", "Vitals"], ["body", "Body systems"], ["sleep", "Sleep & mind"], ["labs", "Labs"], ["environment", "Environment"], ["guidance", "Guidance"], ["tech", "NASA tech"]];
+const CHAPTERS = [["today", "Today"], ["vitals", "Vitals"], ["body", "Body systems"], ["sleep", "Sleep & mind"], ["labs", "Labs"], ["environment", "Environment"], ["guidance", "Guidance"]];
 let tvChapter = "today";
 const pos = (b) => `left:${b.left}%;top:${b.top}%;width:${b.width}%;${b.height ? `height:${b.height}%;` : ""}`;
 let screenZoom = false;
@@ -1099,7 +1112,7 @@ new ResizeObserver(() => fitHealth()).observe($("#room"));
 // The app starts after the arrival animation ends (the laptop screen is white at that moment), and only appears once it has drawn.
 async function bootLaptop() {
   const f = $("#tv-main"), scr = $("#tv-screen"); if (!f) return;
-  while (moving) await new Promise((r) => setTimeout(r, 60));
+  while (moving || consoleStanding) await new Promise((r) => setTimeout(r, 60));
   if ($("#tv-main") !== f) return;
   if (!f.dataset.loaded) {
     const ready = new Promise((r) => { f.onload = r; setTimeout(r, 6000); });
@@ -1510,8 +1523,9 @@ function dragify(el, item) {
 }
 
 function hotspot(act) {
-  const map = { console: () => travelTo("command"), desk: openDesk, sheets: openSheets, planet: () => { go("planet"); arriveAnim(); }, exercise: openExercise, analyses: openAnalyses, tests: openTests,
-    breath: openBreath, mood: openMood, library: openLibrary, book: openBook, healthapp: openHealthApp };
+  const map = { console: () => travelTo("command"), desk: () => (view === "room" && currentRoom === "living" ? sitAtDesk() : openDesk()), sheets: openSheets, planet: () => { go("planet"); arriveAnim(); }, exercise: openExercise, analyses: openAnalyses, tests: openTests,
+    breath: openBreath, mood: openMood, library: openLibrary, book: openBook, healthapp: openHealthApp,
+    landview: () => openLandview(false), telescope: () => openLandview(true), nasatech: openNasaTech, photoboard: openPhotoBoard };
   map[act]?.();
 }
 
@@ -1531,10 +1545,12 @@ function showPanel(entry) {
 }
 function openPanel(title, render, opt = {}) { stack.length = 0; showPanel({ title, render, ...opt }); }
 function rerender() { if (current && !$("#panel").hidden) { const b = $("#panel-body"); const st = b.scrollTop; if (cleanup) { cleanup(); cleanup = null; } b.innerHTML = ""; current.render(b); b.scrollTop = st; } }
+let afterClose = null;
 function closePanel() {
   if (cleanup) { cleanup(); cleanup = null; }
   $("#panel").hidden = true; $("#scrim").hidden = true; stack.length = 0; current = null;
   go(view);
+  if (afterClose) { const f = afterClose; afterClose = null; f(); }
 }
 function backPanel() { const prev = stack.pop(); if (!prev) return closePanel(); showPanel(prev); }
 function sub(title, render, opt = {}) { if (current && !$("#panel").hidden) stack.push(current); showPanel({ title, render, ...opt }); }
@@ -1625,7 +1641,9 @@ function openSheets() {
       ${lines.map(([done, txt]) => `<span class="sh-l"><i class="${done ? "on" : ""}"></i>${esc(txt)}</span>`).join("")}</button>`;
     b.innerHTML = `<div class="wall"><div class="wire"></div><div class="sheets">
       ${sheet("checklist", "Checklist", tasks.map((t) => [S.daily.norma[t.id], t.t]), -2)}
-      ${sheet("workout", "Camera workout", [[S.exerciseLog.some((l) => l.day === S.day), "One ARED set"], [S.daily.goodSets > 0, "A good set (80% good form)"], [S.daily.exerciseCoins >= REWARD.exerciseCap, `Coins today: ${S.daily.exerciseCoins}/${REWARD.exerciseCap}`]], 1.5)}
+      ${(() => { const sets = S.exerciseLog.filter((l) => l.day === S.day), ec = S.daily.exerciseCoins || 0;
+        return sheet("workout", "Camera workout", [[sets.length > 0, `Sets today: ${sets.length}`], [S.daily.goodSets > 0, `Good sets (80% good form): ${S.daily.goodSets}`], [ec > 0, `Coins earned: ${ec} / ${REWARD.exerciseCap}`]], 1.5)
+          .replace("</button>", `<span class="sh-bar"><i style="width:${Math.min(100, (ec / REWARD.exerciseCap) * 100)}%"></i></span></button>`); })()}
       ${sheet("tests", "Cognitive tests", [[g.pvt, "Catch the meteor"], [g.memory, "Fix the panel"], [g.mood, "Mood check-in"]], -1)}
     </div></div>
     <p class="muted small" style="text-align:center">Pick a sheet off the wall.</p>`;
@@ -1706,9 +1724,9 @@ function openShop(push, slot) {
     const draw = () => {
       const m = roomById(currentRoom), z = zoneOf(currentRoom);
       const all = Object.entries(ITEMS).filter(([, it]) => !it.reward);
-      const list = all.filter(([k, it]) => tab === "all" || (tab === "spot" ? slot.items.includes(k) : it.tier === tab));
+      const list = all.filter(([k, it]) => tab === "all" || (tab === "storage" ? (S.inventory[k] || 0) > 0 : tab === "spot" ? slot.items.includes(k) : it.tier === tab));
       const newKeys = all.filter(([k, it]) => S.day >= it.day && !S.seenItems[k]).map(([k]) => k);
-      const owned = (k) => Object.values(S.decor).flat().filter((d) => d.item === k).length;
+      const owned = (k) => Object.values(S.decor).flat().filter((d) => d.item === k).length + (S.inventory[k] || 0);
       const fits = (k) => !isWall(k) || z.walls.length > 0;
       if (!pick || !list.some(([k]) => k === pick)) {
         const open = list.filter(([k, it]) => S.day >= it.day);
@@ -1724,9 +1742,9 @@ function openShop(push, slot) {
             <h3>${locked ? "A mystery item" : esc(it.name)}</h3>
             <p>${locked ? `Arrives with the supply drop on day ${it.day}.` : esc(it.desc || "")}</p>
             <div class="mk-facts"><span>${isWall(pick) ? "Hangs on a wall" : it.layer === "floor" ? "Lies on the floor" : "Stands on the floor"}</span>${owned(pick) ? `<span>You own ${owned(pick)}</span>` : ""}</div>
-            <button class="mk-buy ${short || locked || !fits(pick) ? "off" : ""}" id="mk-buy">${locked ? `Unlocks day ${it.day}` : !fits(pick) ? "No free wall in this room" : short ? `Need ${it.price - S.coins} more` : `Buy & place`}<b><span class="coin"></span>${it.price}</b></button></div>
+            <button class="mk-buy ${(short && !S.inventory[pick]) || locked || !fits(pick) ? "off" : ""}" id="mk-buy">${locked ? `Unlocks day ${it.day}` : !fits(pick) ? "No free wall in this room" : S.inventory[pick] ? `Place from storage (${S.inventory[pick]})` : short ? `Need ${it.price - S.coins} more` : `Buy & place`}${S.inventory[pick] ? `<b>free</b>` : `<b><span class="coin"></span>${it.price}</b>`}</button></div>
         </div>
-        <div class="seg tabs" id="mk-tabs">${[...(slot ? ["spot"] : []), "all", ...Object.keys(TIERS)].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t === "spot" ? "For this spot" : t === "all" ? "All" : TIERS[t].name}</button>`).join("")}</div>
+        <div class="seg tabs" id="mk-tabs">${[...(slot ? ["spot"] : []), "all", ...(Object.keys(S.inventory).length ? ["storage"] : []), ...Object.keys(TIERS)].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t === "spot" ? "For this spot" : t === "all" ? "All" : t === "storage" ? `Storage (${Object.values(S.inventory).reduce((a, n) => a + n, 0)})` : TIERS[t].name}</button>`).join("")}</div>
         <div class="market">${list.map(([k, x]) => {
           const lk = S.day < x.day;
           return `<button class="mk ${lk ? "locked" : ""} ${k === pick ? "on" : ""} t-${x.tier}" data-pick="${k}" style="--tier:${TIERS[x.tier].color}">
@@ -1735,7 +1753,7 @@ function openShop(push, slot) {
             <span class="mk-name">${lk ? "???" : esc(x.name)}</span>
             <span class="mk-meta"><span class="mk-tier">${TIERS[x.tier].name}</span><span class="mk-price ${S.coins < x.price && !lk ? "short" : ""}">${lk ? `day ${x.day}` : x.price}</span></span></button>`;
         }).join("")}</div>
-        <div class="card"><h3>In this room</h3>${(S.decor[currentRoom] || []).length ? S.decor[currentRoom].map((d, i) => `<div class="row between"><span class="row"><img src="${itemImg(d.item)}" alt="" style="width:34px;height:34px;object-fit:contain">${esc(ITEMS[d.item].name)}</span><span class="row"><button class="ghost" data-size="${i}|-1">−</button><button class="ghost" data-size="${i}|1">+</button><button class="ghost" data-del="${i}">Remove</button></span></div>`).join("") : `<p class="muted">Nothing yet. Pick something above.</p>`}</div>`;
+        <div class="card"><h3>In this room</h3>${(S.decor[currentRoom] || []).length ? S.decor[currentRoom].map((d, i) => `<div class="row between"><span class="row"><img src="${itemImg(d.item)}" alt="" style="width:34px;height:34px;object-fit:contain">${esc(ITEMS[d.item].name)}</span><span class="row"><button class="ghost" data-size="${i}|-1">−</button><button class="ghost" data-size="${i}|1">+</button>${d.fixed ? `<span class="muted small">built-in</span>` : `<button class="ghost" data-del="${i}">Put away</button>`}</span></div>`).join("") : `<p class="muted">Nothing yet. Pick something above.</p>`}</div>`;
       newKeys.forEach((k) => (S.seenItems[k] = true)); save();
       $$("[data-tab]", b).forEach((t) => (t.onclick = () => { tab = t.dataset.tab; pick = null; draw(); }));
       $$("[data-pick]", b).forEach((t) => (t.onclick = () => { pick = t.dataset.pick; draw(); const h = $(".mk-hero", b); h.classList.remove("swap"); void h.offsetWidth; h.classList.add("swap"); h.scrollIntoView({ block: "nearest", behavior: "smooth" }); }));
@@ -1743,8 +1761,9 @@ function openShop(push, slot) {
         const k = pick, it = ITEMS[k];
         if (S.day < it.day) { toast(`This item is still a mystery. It arrives on day ${it.day}.`); return; }
         if (!fits(k)) { toast("This room has no free wall. Try the Bedroom or the Mess hall."); return; }
-        if (S.coins < it.price) { toast(`You need ${it.price - S.coins} more coins.`); openCoins(true); return; }
-        spend(it.price);
+        const fromStore = (S.inventory[k] || 0) > 0;
+        if (!fromStore && S.coins < it.price) { toast(`You need ${it.price - S.coins} more coins.`); openCoins(true); return; }
+        if (fromStore) { S.inventory[k]--; if (!S.inventory[k]) delete S.inventory[k]; } else spend(it.price);
         const useSlot = slot && slot.items.includes(k) && !(S.decor[currentRoom] || []).some((d) => d.slot === slot.id);
         const d = useSlot ? { item: k, x: slot.x, y: slot.y, s: 1, slot: slot.id } : freeSpot(currentRoom, k);
         d.fresh = true; clampPlace(currentRoom, d); (S.decor[currentRoom] ||= []).push(d); save();
@@ -1753,7 +1772,7 @@ function openShop(push, slot) {
         toast(`${it.name} is in your ${roomById(currentRoom).name.toLowerCase()}. Drag it where you like.`);
       };
       $$("[data-size]", b).forEach((t) => (t.onclick = () => { const [i, dd] = t.dataset.size.split("|").map(Number); const x = S.decor[currentRoom][i]; x.s = clamp((x.s || 1) + dd * 0.12, 0.7, 1.4); save(); renderDecor(); }));
-      $$("[data-del]", b).forEach((t) => (t.onclick = () => { S.decor[currentRoom].splice(+t.dataset.del, 1); save(); renderRoom(); draw(); }));
+      $$("[data-del]", b).forEach((t) => (t.onclick = () => { const x = S.decor[currentRoom][+t.dataset.del]; if (!x || x.fixed) return; S.decor[currentRoom].splice(+t.dataset.del, 1); store(x.item); save(); renderRoom(); draw(); }));
     };
     draw();
   }, { wide: true });
@@ -1772,6 +1791,20 @@ const relCh = (pp) => pp.chapters.filter((c) => c.day <= S.day);
 const unreadOf = (pp) => relCh(pp).filter((c, j) => !S.read[pp.id + j]).length;
 let BK = { book: null, view: "toc", person: null, spread: -1, ch: null };
 function openDesk(push) { opener(push)("Desk", renderDesk, { wide: true }); }
+async function sitAtDesk() {
+  if (moving) return;
+  const sc = sceneEl(), h = (roomById(currentRoom).hotspots || []).find((x) => x.act === "desk") || { x: 50, y: 60 }, K = 2.4;
+  if (!reducedMotion()) {
+    moving = true; $("#room").classList.add("walking"); sc.style.transformOrigin = `${h.x}% ${h.y - 8}%`;
+    await sc.animate([{ transform: "scale(1)" }, { transform: `scale(${K})` }], { duration: 900, easing: E_IO, fill: "forwards" }).finished;
+    moving = false;
+  }
+  afterClose = async () => {
+    if (!reducedMotion()) { moving = true; await sc.animate([{ transform: `scale(${K})` }, { transform: "scale(1)" }], { duration: 800, easing: E_IO, fill: "forwards" }).finished; }
+    unmove(sc); $("#room").classList.remove("walking"); moving = false;
+  };
+  openDesk();
+}
 function openJournalBook(state) { BK = { book: "community", view: "toc", person: null, spread: -1, ch: null, ...state }; openPanel(BK.book === "personal" ? "Personal Journal" : "Community Journal", renderOpenBook, { wide: true }); }
 function renderDesk(b) {
   const writers = PEOPLE.length + 1, news = PEOPLE.reduce((a, pp) => a + unreadOf(pp), 0);
@@ -1784,9 +1817,15 @@ function renderDesk(b) {
     <div class="desk-legend"><div><b>Personal Journal</b><span>Only you read it. +${REWARD.journal} coins a day, streak bonus.</span></div><div><b>Community Journal</b><span>Read the other crews, write your insights. +${REWARD.chapter} per chapter, +${REWARD.read} per new chapter read.</span></div></div>`;
   $$("[data-open]", b).forEach((t) => (t.onclick = () => {
     if (t.classList.contains("opening")) return;
-    t.classList.add("opening"); b.querySelector(".desk2").classList.add("picked");
+    const desk = b.querySelector(".desk2"), other = [...desk.querySelectorAll(".tome2")].find((x) => x !== t);
+    t.classList.add("opening");
+    if (!reducedMotion()) {
+      const dr = desk.getBoundingClientRect(), tr = t.getBoundingClientRect(), orr = other.getBoundingClientRect(), side = orr.left < tr.left ? -1 : 1;
+      other.animate([{ transform: "none", opacity: 1 }, { transform: `translateX(${side * 135}%) rotate(${side * 9}deg)`, opacity: 0 }], { duration: 560, easing: E_IN, fill: "forwards" });
+      t.animate([{ transform: "none" }, { transform: `translateX(${dr.left + dr.width / 2 - (tr.left + tr.width / 2)}px) translateY(-6px) scale(1.3)` }], { duration: 720, easing: E_IO, fill: "forwards" });
+    }
     const kind = t.dataset.open;
-    setTimeout(() => { BK = { book: kind, view: kind === "personal" ? "journal" : "toc", person: null, spread: -1, ch: null }; sub(kind === "personal" ? "Personal Journal" : "Community Journal", renderOpenBook, { wide: true }); }, reducedMotion() ? 0 : 560);
+    setTimeout(() => { BK = { book: kind, view: kind === "personal" ? "journal" : "toc", person: null, spread: -1, ch: null }; sub(kind === "personal" ? "Personal Journal" : "Community Journal", renderOpenBook, { wide: true }); }, reducedMotion() ? 0 : 760);
   }));
 }
 // ── page content ──
@@ -1912,7 +1951,14 @@ function turnTo(state, dir) {
   leaf.innerHTML = dir > 0 ? `<div class="lf front pg right">${oldR}</div><div class="lf back pg left">${newL}</div>` : `<div class="lf front pg left">${oldL}</div><div class="lf back pg right">${newR}</div>`;
   if (dir > 0) R.innerHTML = newR; else L.innerHTML = newL;
   spread.append(leaf);
-  leaf.animate([{ transform: "rotateY(0deg)" }, { transform: `rotateY(${dir > 0 ? -180 : 180}deg)` }], { duration: 720, easing: "cubic-bezier(.4,.1,.25,1)" }).onfinish = () => { leaf.remove(); paintSpread(sp); };
+  const sg = dir > 0 ? -1 : 1, D = 860;
+  const cast = document.createElement("div"); cast.className = "flipcast " + (dir > 0 ? "fwd" : "bwd"); spread.append(cast);
+  cast.animate([{ opacity: 0 }, { opacity: .55, offset: .45 }, { opacity: 0 }], { duration: D, easing: "ease-in-out" });
+  leaf.animate([
+    { transform: "perspective(2200px) rotateY(0deg) translateZ(0)" },
+    { transform: `perspective(2200px) rotateY(${sg * 55}deg) translateZ(18px) skewY(${-sg * 1.2}deg)`, offset: .3 },
+    { transform: `perspective(2200px) rotateY(${sg * 120}deg) translateZ(18px) skewY(${sg * 1.2}deg)`, offset: .66 },
+    { transform: `perspective(2200px) rotateY(${sg * 180}deg) translateZ(0)` }], { duration: D, easing: "cubic-bezier(.45,.05,.25,1)" }).onfinish = () => { leaf.remove(); cast.remove(); paintSpread(sp); };
 }
 function bindBook(b) {
   const root = $("#book2", b);
@@ -2359,6 +2405,78 @@ function openBreath(push) {
     bindWellnessActions(b);
     cleanup = () => timers.forEach(clearTimeout);
   });
+}
+
+/* ───────────────────────── looking out: the land of Nabu ─────────────────────────
+   The window shows the whole panorama, which you can drag along; the telescope shows a magnified round view
+   with a reticle, and you look around by dragging. Only the picture moves (a transform). */
+function openLandview(scope) {
+  openPanel(scope ? "Telescope" : "The view from the window", (b) => {
+    b.innerHTML = `<div class="land ${scope ? "scope" : ""}" id="land"><img src="assets/landview.webp" alt="The plains, canyon and mountains of Nabu under a ringed planet" draggable="false">
+      ${scope ? `<i class="reticle"></i>` : ""}</div>
+      <p class="muted small" style="text-align:center">${scope ? "Drag to look around · scroll to zoom" : "Drag to look along the horizon"}</p>`;
+    const box = $("#land", b), img = box.querySelector("img");
+    let x = 0, y = 0, k = scope ? 2.4 : 1, drag = null, raf = 0;
+    const clampXY = () => {
+      const W = box.clientWidth, H = box.clientHeight, iw = Math.max(W * (scope ? 0.5 * k : 1.6), H * 2688 / 1152 * 1.02), ih = iw * (1152 / 2688);
+      const mx = Math.max(0, (iw - W) / 2), my = Math.max(0, (ih - H) / 2); x = clamp(x, -mx, mx); y = clamp(y, -my, my);
+      img.style.width = iw + "px"; img.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    };
+    const paint = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(clampXY); };
+    box.onpointerdown = (e) => { drag = { px: e.clientX, py: e.clientY, x, y }; box.setPointerCapture(e.pointerId); box.classList.add("grab"); };
+    box.onpointermove = (e) => { if (!drag) return; x = drag.x + (e.clientX - drag.px); y = drag.y + (e.clientY - drag.py); paint(); };
+    box.onpointerup = box.onpointercancel = () => { drag = null; box.classList.remove("grab"); };
+    if (scope) box.onwheel = (e) => { e.preventDefault(); k = clamp(k * (e.deltaY < 0 ? 1.12 : 0.89), 1.4, 5); paint(); };
+    if (img.complete) clampXY(); else img.onload = clampXY;
+    // a slow look along the horizon when the panel opens
+    if (!reducedMotion()) { x = scope ? 120 : 260; paint(); setTimeout(() => { img.style.transition = "transform 2.6s cubic-bezier(.3,0,.2,1)"; x = 0; paint(); setTimeout(() => (img.style.transition = ""), 2700); }, 120); }
+    logAct("checkin", scope ? "Looked through the telescope" : "Looked out of the window", "ok");
+  }, { wide: true });
+}
+/* NASA tech: the patents and research browser, here in the observation lounge library (and only here). */
+function openNasaTech() {
+  openPanel("Library · NASA tech", (b) => {
+    b.innerHTML = `<p class="muted">NASA patents and research projects behind the health systems of the base, from TechTransfer and TechPort.</p>
+      <div class="tech-host"><iframe title="NASA tech" src="health/index.html?tech-only#tech" loading="eager"></iframe></div>`;
+  }, { wide: true, xl: true });
+}
+/* The photo board in the comms workshop: pin pictures you are allowed to use (your own, or copyright-free such as
+   NASA images). They are shrunk on this device and kept only here. */
+const PHOTO_KEY = "nabu.photos", PHOTO_MAX = 12;
+const photos = () => { try { return JSON.parse(localStorage.getItem(PHOTO_KEY)) || []; } catch { return []; } };
+function shrinkImage(file, max = 1000) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader(); fr.onerror = rej;
+    fr.onload = () => { const im = new Image(); im.onerror = rej; im.onload = () => {
+      const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas");
+      c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      res(c.toDataURL("image/jpeg", 0.82)); }; im.src = fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+function openPhotoBoard() {
+  openPanel("Photo board", (b) => {
+    const draw = () => {
+      const list = photos();
+      b.innerHTML = `<p class="muted">Pin pictures to the board. Only use pictures you have the right to share: your own photos, or copyright-free and public-domain images (for example from NASA).</p>
+        <div class="cork">${list.map((ph, i) => `<figure class="pin" style="--r:${((i * 37) % 9) - 4}deg"><i class="tack"></i><img src="${ph.data}" alt=""><figcaption>${esc(ph.caption || "")}</figcaption><button class="pin-x" data-rm="${i}" title="Take down">✕</button></figure>`).join("")}
+          ${list.length < PHOTO_MAX ? `<label class="pin add"><input type="file" accept="image/*" multiple hidden id="ph-in"><span>＋</span><small>Add photos</small></label>` : ""}</div>
+        <label class="row small muted" style="gap:8px;margin-top:10px"><input type="checkbox" id="ph-ok"> These pictures are mine or copyright-free.</label>`;
+      $$("[data-rm]", b).forEach((x) => (x.onclick = () => { const l = photos(); l.splice(+x.dataset.rm, 1); localStorage.setItem(PHOTO_KEY, JSON.stringify(l)); draw(); }));
+      const inp = $("#ph-in", b); if (!inp) return;
+      inp.onchange = async () => {
+        if (!$("#ph-ok", b).checked) { toast("Tick that the pictures are yours or copyright-free first."); inp.value = ""; return; }
+        const l = photos();
+        for (const f of [...inp.files].slice(0, PHOTO_MAX - l.length)) {
+          if (!f.type.startsWith("image/")) continue;
+          try { l.push({ data: await shrinkImage(f), caption: f.name.replace(/\.[^.]+$/, "").slice(0, 40), at: Date.now() }); } catch {}
+        }
+        try { localStorage.setItem(PHOTO_KEY, JSON.stringify(l)); } catch { toast("The board is full on this device. Take a picture down first."); }
+        logAct("checkin", "Pinned a photo on the comms board", "ok"); draw();
+      };
+    };
+    draw();
+  }, { wide: true });
 }
 
 /* ───────────────────────── medical results ───────────────────────── */

@@ -1684,3 +1684,43 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 @keyframes lapSpin { to { transform: rotate(360deg); } }
 .tv-host.laptop:has(.tv-screen.boot) .lap-boot { opacity: 1; transition-delay: .5s; }
 .pj-count b { color: #b77a12; } .pj-count.ready { color: #1f7a6a; font-weight: 600; } .pj-count.ready b { color: #1f7a6a; }
+.sh-bar { display: block; height: 6px; margin: 8px 2px 0; border-radius: 99px; background: rgba(0,0,0,.1); overflow: hidden; } .sh-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e2a63b, #f3c968); border-radius: inherit; }
+.dt-fixed { font: 600 11px var(--font-body); color: #9fb0c8; padding: 0 6px; }
+/* walking through a door / standing in the study: hide the room buttons while the camera moves */
+.room.walking .room-ui, .room.walking #room-hotspots, .room.standing .room-ui, .room.standing .kb-hint { opacity: 0; pointer-events: none; transition: opacity .2s; }
+.room.walking .room-caption { opacity: 0; }
+/* living-room TV: health summary */
+.ws-health .wsh { display: flex; align-items: center; gap: 22px; margin-top: 10px; }
+.wsh-ring { width: 118px; height: 118px; flex: none; }
+.wsh-ring circle { fill: none; stroke-width: 7; } .wsh-ring .bg { stroke: rgba(150,200,255,.15); } .wsh-ring .fg { stroke: #3fc7b5; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 38px 38px; }
+.wsh-ring text { fill: #fff; font: 700 22px var(--font-mono, monospace); text-anchor: middle; }
+.wsh-rows { display: grid; grid-template-columns: auto auto; gap: 6px 16px; font: 600 18px var(--font-mono, monospace); }
+.wsh-rows span { color: #8fb3e6; } .wsh-rows b { color: #fff; text-align: right; } .wsh-rows i { font-style: normal; color: #8fb3e6; font-size: 13px; }
+/* the land of Nabu */
+.land { position: relative; height: min(62vh, 560px); border-radius: 16px; overflow: hidden; background: #2a2440; cursor: grab; touch-action: none; }
+.land.grab { cursor: grabbing; }
+.land img { position: absolute; left: 50%; top: 50%; max-width: none; user-select: none; will-change: transform; }
+.land.scope { border-radius: 50%; width: min(62vh, 560px); margin: 0 auto; box-shadow: inset 0 0 0 10px #10141f, inset 0 0 60px 30px rgba(0,0,0,.75), 0 18px 50px rgba(0,0,0,.45); }
+.land.scope::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 10px #10141f, inset 0 0 70px 26px rgba(0,0,0,.8); pointer-events: none; }
+.reticle { position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(rgba(127,227,212,.55), rgba(127,227,212,.55)) center / 1px 34% no-repeat, linear-gradient(90deg, rgba(127,227,212,.55), rgba(127,227,212,.55)) center / 34% 1px no-repeat; }
+/* NASA tech browser */
+.tech-host { height: min(70vh, 720px); border-radius: 14px; overflow: hidden; background: #f1f5f9; }
+.tech-host iframe { width: 100%; height: 100%; border: 0; }
+/* photo board */
+.cork { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; padding: 22px; border-radius: 16px; background: #b98b5b radial-gradient(rgba(0,0,0,.08) 1px, transparent 1.5px) 0 0 / 6px 6px; box-shadow: inset 0 0 0 8px #7a5432, inset 0 6px 18px rgba(0,0,0,.35); }
+.pin { position: relative; margin: 0; padding: 8px 8px 6px; background: #fdfaf3; box-shadow: 0 6px 14px rgba(0,0,0,.3); transform: rotate(var(--r)); transition: transform .25s; }
+.pin:hover { transform: rotate(0) scale(1.04); z-index: 2; }
+.pin img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+.pin figcaption { font: 500 12px var(--font-body); color: #4a3a2a; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pin .tack { position: absolute; top: -6px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ff8a7a, #c0392b); box-shadow: 0 2px 3px rgba(0,0,0,.4); }
+.pin-x { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; opacity: 0; transition: opacity .2s; }
+.pin:hover .pin-x { opacity: 1; }
+.pin.add { display: grid; place-items: center; align-content: center; gap: 4px; min-height: 140px; border: 2px dashed rgba(253,250,243,.8); background: rgba(253,250,243,.15); color: #fdfaf3; cursor: pointer; transform: none; }
+.pin.add span { font-size: 34px; line-height: 1; } .pin.add small { font: 600 13px var(--font-body); }
+/* flip-book page turn: page lift shading over the whole turn and a cast shadow on the page below */
+.lf::after { animation-duration: .86s; }
+.leaf .lf.front { box-shadow: 0 0 22px rgba(60,35,10,.18); }
+.flipcast { position: absolute; top: 0; bottom: 0; width: 50%; pointer-events: none; z-index: 4; }
+.flipcast.fwd { left: 50%; background: linear-gradient(90deg, rgba(40,22,6,.35), rgba(40,22,6,.08) 35%, transparent 70%); }
+.flipcast.bwd { left: 0; background: linear-gradient(270deg, rgba(40,22,6,.35), rgba(40,22,6,.08) 35%, transparent 70%); }
