@@ -192,7 +192,7 @@ class CameraSource {
   constructor(){ this.stream = null; this.timer = null; this.video = null; this.cv = null; this.n = 0; this.lum = null; this.faceLum = null; }
   async start(onFrame){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Camera nu e disponibilă aici (pagina trebuie deschisă prin https sau http://localhost).');
-    this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 30 } }, audio: false });
     const v = this.video = document.createElement('video');
     v.playsInline = true; v.muted = true; v.setAttribute('aria-hidden', 'true');
     v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:-10px';
@@ -216,7 +216,7 @@ class CameraSource {
             const L = res.faceLandmarks[0], W = v.videoWidth, H = v.videoHeight;
             let open = null, irisPx = null;
             if (L.length >= 478){ const a = irisOpen(L, LID_R, IRIS_R, W, H), b = irisOpen(L, LID_L, IRIS_L, W, H);
-              const vals = [a.open, b.open].filter(x => x != null); open = vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : null; irisPx = (a.diam + b.diam) / 2; }
+              const vals = [a.open, b.open].filter(x => x != null); open = vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : null; irisPx = (a.diam + b.diam) / 2 * (1280 / W); }   // in 1280-wide pixels, whatever the camera size
             if (open == null){ const e1 = ear(L, R_EYE, W, H), e2 = ear(L, L_EYE, W, H); open = (e1 != null && e2 != null) ? (e1 + e2) / 2 : (e1 ?? e2); }
             const cats = (res.faceBlendshapes && res.faceBlendshapes[0] && res.faceBlendshapes[0].categories) || [];
             const g = n => { const c = cats.find(c => c.categoryName === n); return c ? c.score : null; };
