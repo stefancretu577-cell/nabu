@@ -1716,3 +1716,6 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .pin:hover .pin-x { opacity: 1; }
 .pin.add { display: grid; place-items: center; align-content: center; gap: 4px; min-height: 140px; border: 2px dashed rgba(253,250,243,.8); background: rgba(253,250,243,.15); color: #fdfaf3; cursor: pointer; transform: none; }
 .pin.add span { font-size: 34px; line-height: 1; } .pin.add small { font: 600 13px var(--font-body); }
+
+.risk-chip { display: inline-flex; align-items: center; margin-left: 8px; padding: 4px 10px; border-radius: 999px; font: 600 11px var(--font-mono, monospace); color: #bfeee6; background: rgba(63,199,181,.12); border: 1px solid rgba(63,199,181,.35); white-space: nowrap; }
+.risk-chip.shut { color: #ffd9a8; background: rgba(226,166,59,.16); border-color: rgba(226,166,59,.5); }

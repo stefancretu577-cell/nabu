@@ -2683,13 +2683,24 @@ function showLinkCode() {
   b.onclick = () => { try { navigator.clipboard.writeText(NABU_SYNC.room).catch(() => {}); } catch {}
     toast(`Link code ${NABU_SYNC.room} copied. On the psychologist's console, type it in “Link code”.`); };
 }
+// test mode: what the fatigue camera sees right now, so a tester knows when "Are you OK?" is about to come
+function riskReadout() {
+  const el = document.createElement("span"); el.className = "risk-chip"; $("#cam-dot")?.after(el);
+  setInterval(() => {
+    const k = window.__nbmRisk; if (!k) { el.textContent = "camera: starting…"; return; }
+    const cd = Math.max(0, 120 - Math.round((performance.now() - (window.__nbmLastPrompt || -1e12)) / 1000));
+    el.className = "risk-chip" + (k.shut ? " shut" : "");
+    el.textContent = !k.face ? (k.slumpFor ? `face lost ${(k.slumpFor / 1000).toFixed(1)} s` : "no face") : k.shut ? `eyes closed ${(k.closedFor / 1000).toFixed(1)} s / 6` : `eyes open · microsleeps ${k.micro}`;
+    if (cd > 0 && cd < 120) el.textContent += ` · next check in ${cd} s`;
+  }, 200);
+}
 function testBar() {
   if ($("#testbar")) return;
   const b = document.createElement("div"); b.id = "testbar"; b.className = "testbar";
   b.innerHTML = `<span class="tb-tag">Test mode</span>
     <button data-t="coins">+500 coins</button><button data-t="day">Next day</button><button data-t="week">+7 days</button>
     <button data-t="psy">Psychologist view ↗</button><button data-t="reset">Reset test</button><button data-t="exit" title="Leave test mode">✕</button>`;
-  document.body.append(b);
+  document.body.append(b); riskReadout();
   b.onclick = (e) => {
     const t = e.target.closest("button")?.dataset.t; if (!t) return;
     if (t === "coins") { S.coins += 500; save(); renderHUD(); toast("+500 coins"); }

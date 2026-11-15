@@ -599,22 +599,29 @@ function create(opts = {}){
        building up), (C) the head drops: the face disappears right after a ≥ 1 s eye closure and stays gone ≥ 6 s.
        Never while the astronaut is using the device, never in the background, at most once every 2 minutes. */
     function checkRisk(r, f){
-      const k = r.rk || (r.rk = { closedSince: null, micro: [], lastFaceClosedMs: 0, lastFaceT: 0, slumpSince: null });
+      const k = r.rk || (r.rk = { closedSince: null, openSince: null, micro: [], lastFaceClosedMs: 0, lastFaceT: 0, slumpSince: null });
       const now = f.t, e = r.engine;
+      // eyes shut = the calibrated closure OR the face model's own blink score (each alone misses some frames)
+      const shut = !!f.face && (e.closed || (f.blink != null && f.blink >= 0.5) || (e.lastClosure || 0) >= 0.65);
       if (f.face){
-        k.slumpSince = null; k.lastFaceT = now;
-        if (e.closed){ if (k.closedSince == null) k.closedSince = e.closeStart || now; k.lastFaceClosedMs = now - k.closedSince; }
+        k.lastFaceT = now; k.slumpSince = null;
+        if (shut){ k.openSince = null; if (k.closedSince == null) k.closedSince = now; k.lastFaceClosedMs = now - k.closedSince; }
         else {
-          if (k.closedSince != null){ const d = now - k.closedSince; if (d >= 1000 && d < 3000) k.micro.push(now); }
-          k.closedSince = null; k.lastFaceClosedMs = 0;
+          if (k.openSince == null) k.openSince = now;
+          // a single "open" frame inside a closure is noise: only 0.4 s of open eyes ends it
+          if (k.closedSince != null && now - k.openSince > 400){
+            const d = k.openSince - k.closedSince; if (d >= 1000 && d < 3000) k.micro.push(now);
+            k.closedSince = null; k.lastFaceClosedMs = 0;
+          }
         }
-      } else {
-        // face lost: a slump only if the eyes had been closing for ≥ 1 s just before
-        if (k.slumpSince == null && k.lastFaceClosedMs >= 1000 && now - k.lastFaceT < 600) k.slumpSince = now;
+      } else if (!(k.closedSince != null && now - k.lastFaceT < 2000)){
+        // the face model often loses a face with closed eyes for a moment; longer than 2 s after a ≥ 1 s closure = head dropped
+        if (k.slumpSince == null && k.lastFaceClosedMs >= 1000 && now - k.lastFaceT < 2600) k.slumpSince = k.lastFaceT;
         k.closedSince = null;
       }
       k.micro = k.micro.filter(t => now - t < 300000);
       const closedFor = k.closedSince != null ? now - k.closedSince : 0;
+      root.__nbmRisk = { face: !!f.face, shut, closedFor, micro: k.micro.length, slumpFor: k.slumpSince != null ? now - k.slumpSince : 0 };
       let why = null;
       if (closedFor >= 6000) why = 'eyes closed for 6 s';
       else if (closedFor >= 3000 && k.micro.length >= 2) why = 'eyes closed for 3 s after repeated microsleeps';
@@ -622,7 +629,7 @@ function create(opts = {}){
       if (!why || r.suspOpen || document.hidden) return;
       if (performance.now() - (root.__nbmLastInput || -1e12) < 8000) return;          // using the device: clearly responsive
       if (performance.now() - (root.__nbmLastPrompt || -1e12) < CFG.promptCooldownMs) return;
-      askOK(r, why); k.micro = []; k.slumpSince = null;
+      askOK(r, why); k.micro = []; k.slumpSince = null; k.closedSince = null;
     }
     // Emergency only (no answer): one small still from the camera, to see where the astronaut is. Never at any other time.
     function emergencyStill(r){
