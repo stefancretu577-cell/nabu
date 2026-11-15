@@ -2397,7 +2397,7 @@ function openExercise(push) {
    (PERCLOS: how long the eyes stay slowly closed). No video is shown, stored or sent; only numbers come back.
    The camera starts when the test opens and stops when the tablet closes. Results: renderPsyResult (you) and
    doctor.html (what your psychologist sees). */
-const PSY_STATUS = { "în regulă": ["All good", "ok"], "atenție": ["Worth watching", "warn"], "odihnă recomandată": ["Rest recommended", "bad"], "urgență": ["Urgent", "bad"], "date insuficiente": ["Not enough camera data", "info"] };
+const PSY_STATUS = { "în regulă": ["All good", "ok"], "atenție": ["Worth watching", "warn"], "odihnă recomandată": ["Rest recommended", "bad"], "urgență": ["Urgent", "bad"], "date insuficiente": ["Not enough camera data", "info"], "all good": ["All good", "ok"], "watch": ["Worth watching", "warn"], "rest recommended": ["Rest recommended", "bad"], "urgent": ["Urgent", "bad"], "not enough data": ["Not enough camera data", "info"] };
 const psyStatus = (r) => { const [label, level] = PSY_STATUS[r.status] || ["Assessment saved", "info"]; return { label, level }; };
 const PSY_HEAD = {
   ok: "No objective signs of fatigue, and how you feel matches the measurements.",
@@ -2455,7 +2455,7 @@ function renderPsyResult(b, c) {
   const phaseName = (s) => s.replace("Siguranță și oboseală", "Safety & fatigue").replace("Chestionare", "Questionnaires").replace("Somn", "Sleep").replace("Volum de muncă", "Workload")
     .replace("Vigilență", "Vigilance").replace("Teste cognitive", "Cognitive tasks").replace("Început", "Start").replace("Secțiunea", "Section").replace("Verificarea răspunsurilor", "Checking answers");
   const cogName = { "Viteză motorie": "Motor speed", "Substituție de cod": "Code substitution", "Memorie asociativă": "Associative memory", "Potrivire vizuală": "Visual matching", "Orientare spațială": "Spatial orientation", "Raționament abstract": "Abstract reasoning", "Asumarea riscului": "Risk taking", "Memorie de cod amânată": "Delayed code memory" };
-  const VERD = { "Apt": "Fit for duty", "Apt cu recomandări": "Fit, with recommendations", "Neapt": "Not fit today", "Admis cu recomandări": "Admitted, with recommendations" };
+  const VERD = { "Fit for duty": "Fit for duty", "Not fit": "Not fit today", "Apt": "Fit for duty", "Apt cu recomandări": "Fit, with recommendations", "Neapt": "Not fit today", "Admis cu recomandări": "Admitted, with recommendations" };
   const verdict = c.verdict ? (VERD[c.verdict] || c.verdict) : "";
   const conc = c.selfTired == null || c.objTired == null ? null : c.selfTired === c.objTired ? "match" : "differ";
   b.innerHTML = `<div class="psy-res">

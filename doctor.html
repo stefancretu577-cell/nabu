@@ -225,7 +225,7 @@ const read = (k, d) => { const m = MIRROR[k]; if (m && (raw("nabu.sync.live", {}
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 const CAT = { self: "Risk to self", others: "Risk to a crewmate", ship: "Risk to the habitat", medical: "Medical red flag", distress: "Low mood signals" };
 const LEVEL = { ok: "Steady", warn: "Watch", bad: "Act now", info: "No data yet" };
-const VERD = { "Apt": "Fit for duty", "Apt cu recomandări": "Fit, with recommendations", "Neapt": "Not fit today", "Admis cu recomandări": "Admitted, with recommendations" };
+const VERD = { "Fit for duty": "Fit for duty", "Not fit": "Not fit today", "Apt": "Fit for duty", "Apt cu recomandări": "Fit, with recommendations", "Neapt": "Not fit today", "Admis cu recomandări": "Admitted, with recommendations" };
 const KIND = { test: "Test", mood: "Mood", exercise: "Workout", assessment: "Assessment", flag: "Guardian", checkin: "Check-in", contact: "Contact" };
 function rng(seed) { let s = 0; for (const c of seed) s = (s * 31 + c.charCodeAt(0)) >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const CREW = [

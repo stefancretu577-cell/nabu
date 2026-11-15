@@ -62,7 +62,7 @@ class Engine {
     this.t0 = null; this.prevT = null; this.ref = []; this.openRef = null; this.closedRef = null; this.refTick = 0;
     this.blinkRef = []; this.blinkBase = 0; this.warmMs = 0;
     this.windows = []; this.win = this.newWin(0);
-    this.phases = []; this.setPhase('Început');
+    this.phases = []; this.setPhase('Start');
     this.closed = false; this.closeStart = 0; this.pend = []; this.slowDurs = [];
     this.lastClosure = 0; this.frames = 0; this.faceFrames = 0;
   }
@@ -137,26 +137,26 @@ class Engine {
 /* ======================= 3. CALITATEA CAMEREI ======================= */
 function adviseCamera(g){
   const a = [];
-  if (!g || !g.face) return [{ k: 'face', msg: 'fața nu a fost vizibilă' }];
-  if (g.lum != null && g.lum < 50) a.push({ k: 'dark', msg: 'lumină prea slabă' });
-  else if (g.lum != null && g.faceLum != null && g.faceLum < 0.65 * g.lum) a.push({ k: 'back', msg: 'lumină în spatele astronautului (contralumină)' });
-  if (g.w < 0.15) a.push({ k: 'far', msg: 'astronautul prea departe de cameră' });
-  else if (g.w > 0.65) a.push({ k: 'near', msg: 'astronautul prea aproape de cameră' });
-  if (g.cx < 0.3 || g.cx > 0.7) a.push({ k: 'side', msg: 'fața la marginea cadrului' });
-  if (g.cy < 0.22 || g.cy > 0.68) a.push({ k: 'vert', msg: 'camera înclinată prea sus sau prea jos' });
-  if (Math.abs(g.yaw || 0) > 20) a.push({ k: 'yaw', msg: 'capul întors față de cameră' });
-  if (g.lookDown != null && g.lookDown > 0.45) a.push({ k: 'gazeDown', msg: 'privirea în jos față de cameră (camera deasupra ochilor), pleoapele par mai închise' });
-  else if (g.lookUp != null && g.lookUp > 0.45) a.push({ k: 'gazeUp', msg: 'camera sub nivelul ochilor' });
-  if (g.irisPx != null && g.irisPx < 10) a.push({ k: 'small', msg: 'ochii prea mici în imagine (rezoluție sau distanță)' });
+  if (!g || !g.face) return [{ k: 'face', msg: 'face not visible' }];
+  if (g.lum != null && g.lum < 50) a.push({ k: 'dark', msg: 'light too dim' });
+  else if (g.lum != null && g.faceLum != null && g.faceLum < 0.65 * g.lum) a.push({ k: 'back', msg: 'light behind the astronaut (backlight)' });
+  if (g.w < 0.15) a.push({ k: 'far', msg: 'astronaut too far from the camera' });
+  else if (g.w > 0.65) a.push({ k: 'near', msg: 'astronaut too close to the camera' });
+  if (g.cx < 0.3 || g.cx > 0.7) a.push({ k: 'side', msg: 'face at the edge of the frame' });
+  if (g.cy < 0.22 || g.cy > 0.68) a.push({ k: 'vert', msg: 'camera tilted too high or too low' });
+  if (Math.abs(g.yaw || 0) > 20) a.push({ k: 'yaw', msg: 'head turned away from the camera' });
+  if (g.lookDown != null && g.lookDown > 0.45) a.push({ k: 'gazeDown', msg: 'looking down at the camera (camera above the eyes), eyelids look more closed' });
+  else if (g.lookUp != null && g.lookUp > 0.45) a.push({ k: 'gazeUp', msg: 'camera below eye level' });
+  if (g.irisPx != null && g.irisPx < 10) a.push({ k: 'small', msg: 'eyes too small in the image (resolution or distance)' });
   return a;
 }
 const QUALITY_TIPS = {
-  face: 'Așezați dispozitivul astfel încât fața să rămână în cadru pe toată durata testului.',
-  dark: 'Aprindeți o lumină în fața astronautului.', back: 'Evitați fereastra sau lampa din spatele astronautului.',
-  far: 'Apropiați dispozitivul (40–70 cm).', near: 'Depărtați puțin dispozitivul.', side: 'Centrați fața în cadru.',
-  vert: 'Înclinați camera spre față.', yaw: 'Camera trebuie să fie în fața astronautului, nu lateral.',
-  gazeDown: 'Puneți camera la nivelul ochilor sau fereastra testului chiar sub cameră.', gazeUp: 'Ridicați camera la nivelul ochilor.',
-  small: 'Apropiați dispozitivul sau folosiți o cameră cu rezoluție mai mare.'
+  face: 'Place the device so the face stays in frame for the whole test.',
+  dark: 'Turn on a light in front of the astronaut.', back: 'Avoid a window or lamp behind the astronaut.',
+  far: 'Bring the device closer (40–70 cm).', near: 'Move the device a little further away.', side: 'Center the face in the frame.',
+  vert: 'Tilt the camera towards the face.', yaw: 'The camera must be in front of the astronaut, not to the side.',
+  gazeDown: 'Put the camera at eye level, or the test window right below the camera.', gazeUp: 'Raise the camera to eye level.',
+  small: 'Bring the device closer or use a higher-resolution camera.'
 };
 
 /* ======================= 4. SURSE: camera (MediaPipe) și simulare ======================= */
@@ -191,7 +191,7 @@ function loadLandmarker(){
 class CameraSource {
   constructor(){ this.stream = null; this.timer = null; this.video = null; this.cv = null; this.n = 0; this.lum = null; this.faceLum = null; }
   async start(onFrame){
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Camera nu e disponibilă aici (pagina trebuie deschisă prin https sau http://localhost).');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('The camera is not available here (the page must be opened over https or http://localhost).');
     this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 30 } }, audio: false });
     const v = this.video = document.createElement('video');
     v.playsInline = true; v.muted = true; v.setAttribute('aria-hidden', 'true');
@@ -200,7 +200,7 @@ class CameraSource {
     this.focusOnEyes = this.setupFocus(this.stream.getVideoTracks()[0]);
     let lm;
     try { lm = await loadLandmarker(); }
-    catch (e){ const err = new Error('Modelul de urmărire a feței nu s-a putut descărca. Verifică conexiunea la internet.'); err.name = 'ModelError'; throw err; }
+    catch (e){ const err = new Error('The face tracking model could not be downloaded. Check the internet connection.'); err.name = 'ModelError'; throw err; }
     if (!this.stream) return;                                     // oprit între timp
     let lastTs = -1;
     const tick = () => {
@@ -297,40 +297,40 @@ function buildReport({ meta, fatigue, quality, selfReport, testResults, history,
       const sd = Math.max(Math.sqrt(prev.reduce((a, b) => a + (b - m) ** 2, 0) / (prev.length - 1)), CFG.sdFloor, 0.05 * m);
       baseline = { sessions: prev.length, mean: r1(m), sd: r1(sd), z: Math.round((fatigue.perclos - m) / sd * 100) / 100, basis: 'baseline personal' };
       objTired = baseline.z >= CFG.zFlag;
-    } else { baseline.basis = `reper orientativ ${CFG.perclosAbs}%; baseline personal în construcție, ${prev.length}/${CFG.minBaseline} sesiuni`; objTired = fatigue.perclos >= CFG.perclosAbs; }
+    } else { baseline.basis = `reference ${CFG.perclosAbs}%; personal baseline in progress, ${prev.length}/${CFG.minBaseline} sessions`; objTired = fatigue.perclos >= CFG.perclosAbs; }
   }
   const kss = selfReport && selfReport.kss != null ? +selfReport.kss : null, sp = selfReport && selfReport.sp != null ? +selfReport.sp : null;
   const selfTired = (kss == null && sp == null) ? null : ((kss ?? 0) >= 7 || (sp ?? 0) >= 5);
 
   let status, headline, level;
-  if (objTired == null){ status = 'date insuficiente'; level = 'info';
-    headline = error ? 'Măsurarea cu camera nu a fost posibilă. Raportul conține doar autoevaluarea și rezultatele testului.' : 'Nu s-au strâns destule cadre valide pentru PERCLOS.'; }
-  else if (objTired && selfTired){ status = 'odihnă recomandată'; level = 'bad'; headline = 'Oboseala declarată este confirmată și de măsurători. Odihna are prioritate.'; }
-  else if (objTired && !selfTired){ status = 'atenție'; level = 'warn'; headline = 'Măsurătorile arată semne de oboseală. O pauză sau mai mult somn ar putea ajuta.'; }
-  else if (!objTired && selfTired){ status = 'atenție'; level = 'warn'; headline = 'Te simți obosit, deși măsurătorile sunt normale. Senzația ta contează: ia-o în considerare.'; }
-  else { status = 'în regulă'; level = 'ok'; headline = 'Nu apar semne obiective de oboseală, iar autoevaluarea e în concordanță.'; }
+  if (objTired == null){ status = 'not enough data'; level = 'info';
+    headline = error ? 'Camera measurement was not possible. The report only has the self-assessment and the test results.' : 'Not enough valid frames for PERCLOS.'; }
+  else if (objTired && selfTired){ status = 'rest recommended'; level = 'bad'; headline = 'The reported fatigue is confirmed by the measurements. Rest comes first.'; }
+  else if (objTired && !selfTired){ status = 'watch'; level = 'warn'; headline = 'The measurements show signs of fatigue. A break or more sleep could help.'; }
+  else if (!objTired && selfTired){ status = 'watch'; level = 'warn'; headline = 'You feel tired although the measurements are normal. How you feel matters: take it into account.'; }
+  else { status = 'all good'; level = 'ok'; headline = 'No objective signs of fatigue, and the self-assessment agrees.'; }
 
   const points = [];
   if (fatigue && fatigue.perclos != null){
-    points.push(`PERCLOS ${fatigue.perclos}% pe ${fatigue.validMinutes} ${fatigue.validMinutes === 1 ? 'minut valid' : 'minute valide'}` +
-      (baseline.z != null ? ` (z ${baseline.z >= 0 ? '+' : ''}${baseline.z} față de media ta de ${baseline.mean}%)` : ` (${baseline.basis})`) + '.');
+    points.push(`PERCLOS ${fatigue.perclos}% over ${fatigue.validMinutes} ${fatigue.validMinutes === 1 ? 'valid minute' : 'valid minutes'}` +
+      (baseline.z != null ? ` (z ${baseline.z >= 0 ? '+' : ''}${baseline.z} vs your average of ${baseline.mean}%)` : ` (${baseline.basis})`) + '.');
     const hi = fatigue.perPhase.filter(p => p.valid).sort((a, b) => b.perclos - a.perclos)[0];
-    if (hi && fatigue.perPhase.filter(p => p.valid).length > 1) points.push(`Cele mai multe închideri lente ale ochilor au apărut în etapa „${hi.phase}” (PERCLOS ${hi.perclos}%).`);
-    points.push(`${fatigue.slowClosures} închideri lente ale ochilor` + (fatigue.meanSlowMs ? `, cu durata medie de ${fatigue.meanSlowMs} ms` : '') + `; ${fatigue.blinksPerMin ?? '–'} clipiri pe minut.`);
+    if (hi && fatigue.perPhase.filter(p => p.valid).length > 1) points.push(`Most slow eye closures happened during “${hi.phase}” (PERCLOS ${hi.perclos}%).`);
+    points.push(`${fatigue.slowClosures} slow eye closures` + (fatigue.meanSlowMs ? `, lasting ${fatigue.meanSlowMs} ms on average` : '') + `; ${fatigue.blinksPerMin ?? '–'} blinks per minute.`);
   }
-  if (selfTired != null) points.push(`Autoevaluare: ${selfTired ? 'obosit' : 'bine'} (KSS ${kss ?? '–'}, Samn-Perelli ${sp ?? '–'}).`);
-  if (framing && framing.outCount) points.push(`Ochii au ieșit din încadrare de ${framing.outCount} ${framing.outCount === 1 ? 'dată' : 'ori'}, în total ${framing.outS} s.`);
+  if (selfTired != null) points.push(`Self-assessment: ${selfTired ? 'tired' : 'fine'} (KSS ${kss ?? '–'}, Samn-Perelli ${sp ?? '–'}).`);
+  if (framing && framing.outCount) points.push(`The eyes left the frame ${framing.outCount} ${framing.outCount === 1 ? 'time' : 'times'}, ${framing.outS} s in total.`);
   const susp = (framing && framing.suspensions) || [], notified = susp.filter(x => x.teamNotified);
-  if (susp.length) points.push(`Testul a fost suspendat de ${susp.length} ${susp.length === 1 ? 'dată' : 'ori'} („Ești OK?”): ` +
-    susp.map(x => `la ${x.atS} s, ${x.answer ? 'răspuns după ' + (x.rtMs / 1000).toFixed(1) + ' s' : 'fără răspuns, echipa notificată de urgență'}`).join('; ') + '.');
-  if (notified.length){ level = 'bad'; status = 'urgență'; headline = 'Astronautul nu a răspuns la verificarea „Ești OK?”. Echipa a fost notificată de urgență.'; }
-  if (quality.issues.length) points.push('Calitatea măsurătorii: ' + quality.issues.map(i => `${i.msg} (${i.pct}% din timp)`).join('; ') + '.');
-  if (!real) points.push('Semnal SIMULAT (demo): valorile nu provin de la o persoană și nu intră în baseline.');
+  if (susp.length) points.push(`The test was paused ${susp.length} ${susp.length === 1 ? 'time' : 'times'} (“Are you OK?”): ` +
+    susp.map(x => `at ${x.atS} s, ${x.answer ? 'answered after ' + (x.rtMs / 1000).toFixed(1) + ' s' : 'no answer, the team was alerted'}`).join('; ') + '.');
+  if (notified.length){ level = 'bad'; status = 'urgent'; headline = 'The astronaut did not answer the “Are you OK?” check. The team was alerted.'; }
+  if (quality.issues.length) points.push('Measurement quality: ' + quality.issues.map(i => `${i.msg} (${i.pct}% of the time)`).join('; ') + '.');
+  if (!real) points.push('SIMULATED signal (demo): the values do not come from a person and are not added to the baseline.');
 
   const recommendations = [];
-  if (level === 'bad') recommendations.push('Amână sarcinile critice și prioritizează somnul.');
-  if (level === 'warn' && objTired) recommendations.push('O pauză scurtă și o verificare a somnului din ultimele nopți.');
-  if (objTired) recommendations.push('Dacă rezultatul se repetă în mai multe zile, discută cu medicul de zbor.');
+  if (level === 'bad') recommendations.push('Postpone critical tasks and put sleep first.');
+  if (level === 'warn' && objTired) recommendations.push('A short break and a check of sleep over the last nights.');
+  if (objTired) recommendations.push('If the result repeats over several days, talk to the flight surgeon.');
   quality.issues.forEach(i => recommendations.push(QUALITY_TIPS[i.k]));
 
   return {
@@ -345,10 +345,10 @@ function buildReport({ meta, fatigue, quality, selfReport, testResults, history,
     concordance: { selfTired, objectiveTired: objTired, message: headline },
     dataQuality: { validPct: fatigue ? fatigue.validPct : 0, facePct: fatigue ? fatigue.facePct : 0, hiddenS: meta.hiddenS, issues: quality.issues, framing },
     testResults: testResults || null,
-    limits: ['PERCLOS e un indicator de vigilență, nu un diagnostic.', 'Nu se detectează emoții, stres sau sinceritatea răspunsurilor.',
-             'Valorile depind de lumină, ochelari și poziția camerei; minutele cu sub 70% cadre valide nu primesc valoare.',
-             'Pragurile sunt orientative; decizia aparține echipajului și medicului de zbor.'],
-    privacy: 'Procesare locală. Nu s-au salvat și nu s-au trimis imagini; raportul conține doar numere.'
+    limits: ['PERCLOS is an indicator of alertness, not a diagnosis.', 'Emotions, stress or how honest the answers are cannot be detected.',
+             'Values depend on light, glasses and camera position; minutes with under 70% valid frames get no value.',
+             'Thresholds are indicative; the crew and the flight surgeon decide.'],
+    privacy: 'Processed locally. No images were saved or sent; the report only has numbers.'
   };
 }
 
@@ -359,35 +359,35 @@ function renderReportHTML(r){
   const F = r.fatigue, T = r.testResults;
   const td = 'style="padding:5px 8px;border-bottom:1px solid #D5DBE6;text-align:left"';
   const tbl = (head, rows) => `<table style="border-collapse:collapse;width:100%;font-size:13px"><thead><tr>${head.map(h => `<th ${td}>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(rw => `<tr>${rw.map(c => `<td ${td}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  const tag = ok => ok ? '<span style="color:#1E7F4E">valid</span>' : '<span style="color:#B42323">nevalid</span>';
+  const tag = ok => ok ? '<span style="color:#1E7F4E">valid</span>' : '<span style="color:#B42323">invalid</span>';
   const sec = (title, body) => `<section style="display:grid;gap:8px"><h3 style="margin:0;font-size:15px">${esc(title)}</h3>${body}</section>`;
   const parts = [];
   parts.push(`<div style="background:${col[0]};border-left:5px solid ${col[1]};border-radius:8px;padding:12px 14px">
     <div style="font:600 12px ui-monospace,monospace;color:${col[1]};text-transform:uppercase">${esc(r.summary.status)}</div>
     <div style="font-size:17px;font-weight:600;margin-top:4px">${esc(r.summary.headline)}</div></div>`);
-  parts.push(sec('Pe scurt', `<ul style="margin:0;padding-left:20px;line-height:1.6">${r.summary.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`));
-  if (r.summary.recommendations.length) parts.push(sec('Recomandări', `<ul style="margin:0;padding-left:20px;line-height:1.6">${r.summary.recommendations.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`));
+  parts.push(sec('In short', `<ul style="margin:0;padding-left:20px;line-height:1.6">${r.summary.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`));
+  if (r.summary.recommendations.length) parts.push(sec('Recommendations', `<ul style="margin:0;padding-left:20px;line-height:1.6">${r.summary.recommendations.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`));
   if (F){
-    parts.push(sec('Oboseală pe etapele testului', tbl(['Etapă', 'Durată', 'PERCLOS', 'Închideri lente', 'Clipiri/min', 'Cadre valide', ''],
+    parts.push(sec('Fatigue by test stage', tbl(['Stage', 'Duration', 'PERCLOS', 'Slow closures', 'Blinks/min', 'Valid frames', ''],
       F.perPhase.map(p => [esc(p.phase), p.durS + ' s', p.perclos != null ? p.perclos + '%' : '–', p.slowClosures, p.blinksPerMin ?? '–', p.validPct + '%', tag(p.valid)]))));
-    parts.push(sec('Oboseală pe minute', tbl(['Minut', 'PERCLOS', 'Închideri lente', 'Clipiri/min', 'Cadre valide', ''],
+    parts.push(sec('Fatigue by minute', tbl(['Minute', 'PERCLOS', 'Slow closures', 'Blinks/min', 'Valid frames', ''],
       F.perMinute.map(m => [m.minute, m.perclos != null ? m.perclos + '%' : '–', m.slowClosures, m.blinksPerMin ?? '–', m.validPct + '%', tag(m.valid)]))));
   }
   if (T){
     const rows = (T.rows || []).map(([k, v]) => [esc(k), esc(v)]);
-    if (T.index != null) rows.push(['Indice ASTRO-PSY', esc(T.index) + ' / 100']);
+    if (T.index != null) rows.push(['ASTRO-PSY index', esc(T.index) + ' / 100']);
     if (T.verdict) rows.push(['Verdict ASTRO-PSY', esc(T.verdict)]);
-    if (T.pvt) rows.push(['PVT', `timp mediu ${esc(Math.round(T.pvt.meanRT))} ms · ${esc(T.pvt.lapses500 ?? T.pvt.lapses)} lapsusuri · ${esc(T.pvt.falseStarts)} starturi false`]);
-    if (T.cog) rows.push(['Teste cognitive', Object.entries(T.cog).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' · ')]);
-    if (rows.length) parts.push(sec('Rezultatele testului', tbl(['Măsură', 'Valoare'], rows)));
+    if (T.pvt) rows.push(['PVT', `mean time ${esc(Math.round(T.pvt.meanRT))} ms · ${esc(T.pvt.lapses500 ?? T.pvt.lapses)} lapses · ${esc(T.pvt.falseStarts)} false starts`]);
+    if (T.cog) rows.push(['Cognitive tests', Object.entries(T.cog).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' · ')]);
+    if (rows.length) parts.push(sec('Test results', tbl(['Measure', 'Valoare'], rows)));
   }
-  parts.push(sec('Calitatea datelor', `<p style="margin:0;font-size:13px">Cadre valide: ${r.dataQuality.validPct}% · față vizibilă: ${r.dataQuality.facePct}%` +
-    (r.dataQuality.hiddenS ? ` · aplicația a stat în fundal ${r.dataQuality.hiddenS} s` : '') + ` · sursă: ${r.source.simulated ? 'simulare' : 'camera frontală'}${r.source.error ? ' · ' + esc(r.source.error) : ''}</p>`));
+  parts.push(sec('Data quality', `<p style="margin:0;font-size:13px">Valid frames: ${r.dataQuality.validPct}% · face visible: ${r.dataQuality.facePct}%` +
+    (r.dataQuality.hiddenS ? ` · the app was in the background for ${r.dataQuality.hiddenS} s` : '') + ` · source: ${r.source.simulated ? 'simulation' : 'front camera'}${r.source.error ? ' · ' + esc(r.source.error) : ''}</p>`));
   parts.push(`<p style="margin:0;font-size:12px;color:#5B6782">${r.limits.map(esc).join(' ')} ${esc(r.privacy)}</p>`);
   return `<div class="nabu-report" style="display:grid;gap:14px;font:14px/1.5 system-ui,sans-serif;color:inherit">${parts.join('')}</div>`;
 }
 function downloadReport(r, kind = 'json'){
-  const name = `nabu-raport-${(r.astronaut || 'astronaut').replace(/\W+/g, '_')}-${r.generatedAt.slice(0, 16).replace(/[:T]/g, '-')}`;
+  const name = `nabu-raport-${(r.astronaut || 'an astronaut').replace(/\W+/g, '_')}-${r.generatedAt.slice(0, 16).replace(/[:T]/g, '-')}`;
   const blob = kind === 'html'
     ? new Blob([`<!DOCTYPE html><html lang="ro"><head><meta charset="utf-8"><title>Raport Nabu</title></head><body style="max-width:860px;margin:24px auto;padding:0 16px"><h1 style="font:600 22px system-ui">Raport Nabu · ${esc(r.astronaut)} · ${esc(new Date(r.generatedAt).toLocaleString('ro-RO'))}</h1>${renderReportHTML(r)}</body></html>`], { type: 'text/html' })
     : new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
@@ -401,13 +401,13 @@ function consentDialog(){
     const w = document.createElement('div');
     w.style.cssText = 'position:fixed;inset:0;background:rgba(11,31,58,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:2147483000;font:14px/1.5 system-ui,sans-serif';
     w.innerHTML = `<div role="dialog" aria-modal="true" style="background:#fff;color:#16213A;border-radius:14px;max-width:500px;padding:22px">
-      <h2 style="margin:0 0 8px;font-size:18px">Măsurarea oboselii în timpul testului</h2>
-      <p style="margin:0 0 8px">Cât durează testul, Nabu poate folosi camera frontală ca să măsoare cât timp ochii stau închiși lent (PERCLOS), un semn obiectiv de oboseală.</p>
-      <ul style="margin:0 0 14px;padding-left:18px"><li>Camera pornește doar în timpul testului și se oprește la final.</li>
-      <li>Nu se salvează și nu se trimite nicio imagine. Rămân doar numere, pe acest dispozitiv.</li>
-      <li>Nu se detectează emoții, stres sau „minciuni”.</li><li>Poți retrage acordul oricând.</li></ul>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-a="1" style="font:600 14px system-ui;border:0;border-radius:8px;padding:9px 14px;background:#D9581A;color:#fff;cursor:pointer">Sunt de acord</button>
-      <button data-a="0" style="font:600 14px system-ui;border:1px solid #D5DBE6;border-radius:8px;padding:9px 14px;background:#E9EDF4;color:#16213A;cursor:pointer">Nu acum</button></div></div>`;
+      <h2 style="margin:0 0 8px;font-size:18px">Fatigue measurement during the test</h2>
+      <p style="margin:0 0 8px">While the test runs, Nabu can use the front camera to measure how long the eyes stay slowly closed (PERCLOS), an objective sign of fatigue.</p>
+      <ul style="margin:0 0 14px;padding-left:18px"><li>The camera only runs during the test and stops at the end.</li>
+      <li>No image is saved or sent. Only numbers stay, on this device.</li>
+      <li>It does not detect emotions, stress or “lies”.</li><li>You can withdraw your consent at any time.</li></ul>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button data-a="1" style="font:600 14px system-ui;border:0;border-radius:8px;padding:9px 14px;background:#D9581A;color:#fff;cursor:pointer">I agree</button>
+      <button data-a="0" style="font:600 14px system-ui;border:1px solid #D5DBE6;border-radius:8px;padding:9px 14px;background:#E9EDF4;color:#16213A;cursor:pointer">Not now</button></div></div>`;
     w.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; w.remove(); resolve(b.dataset.a === '1'); });
     document.body.appendChild(w);
   });
@@ -415,12 +415,12 @@ function consentDialog(){
 /** Explică pe înțeles de ce nu a pornit camera. */
 function friendlyError(e){
   const n = e && e.name, m = (e && e.message) || String(e);
-  if (n === 'NotAllowedError' || n === 'PermissionDeniedError') return 'accesul la cameră e blocat. Apasă pe pictograma camerei (sau a lacătului) din bara de adrese, alege „Permite”, reîncarcă pagina și pornește din nou testul.';
-  if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'nu s-a găsit nicio cameră pe acest dispozitiv.';
-  if (n === 'NotReadableError' || n === 'TrackStartError') return 'camera e folosită de altă aplicație (de ex. Zoom, Teams, alt tab). Închide-o și pornește din nou testul.';
-  if (n === 'SecurityError') return 'pagina nu are voie să folosească camera aici (de ex. în versiunea găzduită). Deschide fișierul pe calculator prin http://localhost.';
+  if (n === 'NotAllowedError' || n === 'PermissionDeniedError') return 'camera access is blocked. Click the camera (or lock) icon in the address bar, choose “Allow”, reload the page and start the test again.';
+  if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'no camera was found on this device.';
+  if (n === 'NotReadableError' || n === 'TrackStartError') return 'the camera is used by another app (e.g. Zoom, Teams, another tab). Close it and start the test again.';
+  if (n === 'SecurityError') return 'this page is not allowed to use the camera here (e.g. in the hosted version). Open the file on a computer over http://localhost.';
   if (n === 'ModelError') return m;
-  if (!window.isSecureContext) return 'camera merge doar pe https:// sau http://localhost.';
+  if (!window.isSecureContext) return 'the camera only works over https:// or http://localhost.';
   return m;
 }
 /** Mesaj vizibil câteva secunde, deasupra indicatorului. */
@@ -435,15 +435,15 @@ function notice(text, ms){
 /** Verifică încadrarea ochilor. Întoarce { ok, msg }. Mesajele sunt pentru imaginea în oglindă (ca la un selfie). */
 function frameCheck(g, F = CFG.frame){
   if (root.NABU_EMBED) return frameCheckEN(g, F);
-  if (!g || !g.face || g.eyeX == null) return { ok: false, msg: 'Nu îți văd ochii. Așază-te cu fața spre cameră.' };
+  if (!g || !g.face || g.eyeX == null) return { ok: false, msg: `I can't see your eyes. Face the camera.` };
   const mx = 1 - g.eyeX, y = g.eyeY, m = [];
-  if (g.w != null && g.w < F.wMin) m.push('apropie-te de cameră');
-  else if (g.w != null && g.w > F.wMax) m.push('depărtează-te puțin de cameră');
-  if (mx < F.xMin) m.push('mută-te spre dreapta →');
-  else if (mx > F.xMax) m.push('← mută-te spre stânga');
-  if (y < F.yMin) m.push('coboară puțin capul sau înclină camera în sus ↑');
-  else if (y > F.yMax) m.push('ridică puțin capul sau înclină camera în jos ↓');
-  return m.length ? { ok: false, msg: 'Ochii au ieșit din încadrare: ' + m.join(', ') + '.' } : { ok: true, msg: '' };
+  if (g.w != null && g.w < F.wMin) m.push('move closer to the camera');
+  else if (g.w != null && g.w > F.wMax) m.push('move a little away from the camera');
+  if (mx < F.xMin) m.push('move to the right →');
+  else if (mx > F.xMax) m.push('← move to the left');
+  if (y < F.yMin) m.push('lower your head a little or tilt the camera up ↑');
+  else if (y > F.yMax) m.push('raise your head a little or tilt the camera down ↓');
+  return m.length ? { ok: false, msg: 'The eyes left the frame: ' + m.join(', ') + '.' } : { ok: true, msg: '' };
 }
 function frameCheckEN(g, F){
   if (!g || !g.face || g.eyeX == null) return { ok: false, msg: "I can't see your eyes. Face the screen." };
@@ -461,7 +461,7 @@ const FrameUI = {
     if (this.el) return;
     const el = this.el = document.createElement('div'); el.id = 'nabu-bgmon-frame'; el.setAttribute('aria-hidden', 'true');
     el.style.cssText = 'position:fixed;left:12px;top:12px;z-index:2147482002;background:rgba(11,31,58,.92);color:#fff;border-radius:12px;padding:8px;font:11px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none';
-    el.innerHTML = '<div style="margin:0 0 5px 2px;opacity:.85">Încadrarea ochilor</div>';
+    el.innerHTML = '<div style="margin:0 0 5px 2px;opacity:.85">Eye framing</div>';
     const cv = this.cv = document.createElement('canvas'); cv.width = 176; cv.height = 99; cv.style.cssText = 'display:block;width:176px;height:99px;border-radius:7px;background:#0B1020';
     el.appendChild(cv);
     const st = this.st = document.createElement('div'); st.style.cssText = 'margin:5px 2px 0;display:flex;justify-content:space-between;gap:8px'; el.appendChild(st);
@@ -472,13 +472,13 @@ const FrameUI = {
     if (!this.cv) return;
     const c = this.cv.getContext('2d'), W = this.cv.width, H = this.cv.height, F = CFG.frame;
     c.clearRect(0, 0, W, H);
-    if (this.st) this.st.innerHTML = `<span style="color:${ok ? '#5BD08F' : '#FF9A9A'}">${ok ? 'în chenar' : (g && g.face ? 'în afara chenarului' : 'ochii nu se văd')}</span><span style="opacity:.6">v${VERSION}</span>`;
+    if (this.st) this.st.innerHTML = `<span style="color:${ok ? '#5BD08F' : '#FF9A9A'}">${ok ? 'in the frame' : (g && g.face ? 'outside the frame' : 'eyes not visible')}</span><span style="opacity:.6">v${VERSION}</span>`;
     c.strokeStyle = ok ? '#5BD08F' : '#FF7A7A'; c.lineWidth = 2; c.setLineDash([5, 4]);
     c.strokeRect(F.xMin * W, F.yMin * H, (F.xMax - F.xMin) * W, (F.yMax - F.yMin) * H); c.setLineDash([]);
     if (g && g.face && g.eyes){
       c.fillStyle = ok ? '#5BD08F' : '#FF7A7A';
       for (const e of g.eyes){ c.beginPath(); c.arc((1 - e.x) * W, e.y * H, 4, 0, Math.PI * 2); c.fill(); }   // în oglindă
-    } else { c.fillStyle = '#FF9A9A'; c.font = '11px system-ui'; c.textAlign = 'center'; c.fillText('ochii nu se văd', W / 2, H / 2 + 4); }
+    } else { c.fillStyle = '#FF9A9A'; c.font = '11px system-ui'; c.textAlign = 'center'; c.fillText('eyes not visible', W / 2, H / 2 + 4); }
   },
   popup(on, msg){
     if (!on){ if (this.pop){ this.pop.remove(); this.pop = null; } return; }
@@ -488,7 +488,7 @@ const FrameUI = {
       document.body.appendChild(p);
     }
     if (root.NABU_EMBED){ this.pop.innerHTML = `<div style="font-size:20px;font-weight:700;margin-bottom:6px">Back in view, please</div><div>${esc(msg)}</div><div style="font-size:12px;color:#5B6782;margin-top:6px">Nabu checks for fatigue in the background. You can carry on.</div>`; return; }
-    this.pop.innerHTML = `<div style="font-size:20px;font-weight:700;margin-bottom:6px">Revino în încadrare</div><div>${esc(msg)}</div><div style="font-size:12px;color:#5B6782;margin-top:6px">Ochii trebuie să stea în chenarul din stânga sus. Testul continuă.</div>`;
+    this.pop.innerHTML = `<div style="font-size:20px;font-weight:700;margin-bottom:6px">Back into the frame</div><div>${esc(msg)}</div><div style="font-size:12px;color:#5B6782;margin-top:6px">Keep your eyes inside the box at the top left. The test goes on.</div>`;
   }
 };
 /** Ecran complet „Ești OK? Test suspendat”: blochează testul, sună continuu, așteaptă răspunsul. */
@@ -502,9 +502,9 @@ function suspendOverlay(answerMs, onNoAnswer){
     const w = SuspendUI.w = document.createElement('div'); w.id = 'nabu-bgmon-suspend';
     w.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(120,14,14,.94);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;font:16px/1.5 system-ui,sans-serif;text-align:center';
     w.innerHTML = `<div role="alertdialog" aria-modal="true" aria-labelledby="nbm-sus" style="max-width:560px;width:100%">
-      <div style="font:700 13px ui-monospace,monospace;letter-spacing:.12em;opacity:.85">${T('TEST SUSPENDAT', 'CHECK-IN')}</div>
+      <div style="font:700 13px ui-monospace,monospace;letter-spacing:.12em;opacity:.85">${T('TEST PAUSED', 'CHECK-IN')}</div>
       <h1 id="nbm-sus" style="margin:8px 0 10px;font-size:44px;line-height:1.1">${T('Ești OK?', 'Are you OK?')}</h1>
-      <p data-m style="margin:0 0 22px;font-size:18px">${T('Răspunde, altfel echipa va fi notificată de urgență.', 'Please answer, otherwise the crew will be alerted.')}</p>
+      <p data-m style="margin:0 0 22px;font-size:18px">${T('Answer, or the team will be alerted.', 'Please answer, otherwise the crew will be alerted.')}</p>
       <button data-ok style="font:700 22px system-ui;border:0;border-radius:14px;padding:18px 34px;background:#fff;color:#8C1414;cursor:pointer;min-width:260px">${T('Sunt OK', "I'm OK")}</button>
       <div data-c style="margin-top:16px;font:600 15px ui-monospace,monospace"></div></div>`;
     document.body.appendChild(w);
@@ -519,11 +519,11 @@ function suspendOverlay(answerMs, onNoAnswer){
       const left = Math.max(0, answerMs - (performance.now() - t0));
       const c = w.querySelector('[data-c]');
       if (!notified){
-        c.textContent = T(`Echipa va fi notificată în ${Math.ceil(left / 1000)} s`, `The crew will be alerted in ${Math.ceil(left / 1000)} s`);
+        c.textContent = T(`The team will be alerted in ${Math.ceil(left / 1000)} s`, `The crew will be alerted in ${Math.ceil(left / 1000)} s`);
         if (left <= 0){
           notified = true; onNoAnswer();
-          w.querySelector('[data-m]').textContent = T('Echipa a fost notificată de urgență. Dacă ești bine, apasă butonul.', 'The crew has been alerted. If you are fine, press the button.');
-          c.textContent = T('Notificare trimisă · ', 'Alert sent · ') + new Date().toLocaleTimeString(root.NABU_EMBED ? 'en-GB' : 'ro-RO');
+          w.querySelector('[data-m]').textContent = T('The team was alerted. If you are fine, press the button.', 'The crew has been alerted. If you are fine, press the button.');
+          c.textContent = T('Alert sent · ', 'Alert sent · ') + new Date().toLocaleTimeString(root.NABU_EMBED ? 'en-GB' : 'ro-RO');
           w.style.background = 'rgba(70,0,0,.97)';
         }
       }
@@ -576,14 +576,14 @@ function create(opts = {}){
     async start(s = {}){
       if (run) api.cancel();
       const source = s.source || o.source;
-      if (source === 'camera'){ const c = ls.get(CFG.KEY_CONSENT, null); if (!c || !c.accepted) return { ok: false, reason: 'fără acord pentru cameră' }; }
+      if (source === 'camera'){ const c = ls.get(CFG.KEY_CONSENT, null); if (!c || !c.accepted) return { ok: false, reason: 'no consent for the camera' }; }
       const src = source === 'camera' ? new CameraSource() : new SimSource(source === 'simulated-tired');
       run = { meta: { astronaut: s.astronaut || o.astronaut, test: s.test || 'test psiho-cognitiv', source, startedAt: new Date().toISOString() },
               t0: performance.now(), engine: new Engine(), src, quality: {}, qFrames: 0, hiddenMs: 0, hiddenAt: 0, error: null,
               fr: { out: false, outSince: null, inSince: null, cur: null, events: [], lastDraw: 0, popSince: null }, susp: [], suspOpen: false };
       const r = run;
       document.addEventListener('visibilitychange', onVis);
-      if (source === 'camera') indicator(true, 'Se pornește camera…');
+      if (source === 'camera') indicator(true, 'Starting the camera…');
       try {
         await src.start(f => {
           if (run !== r) return;
@@ -610,7 +610,7 @@ function create(opts = {}){
                   const atS = Math.round((performance.now() - r.t0) / 1000), phase = r.engine.phase ? r.engine.phase.name : null;
                   suspendOverlay(o.suspendAnswerMs || CFG.suspendAnswerMs, () => {
                     // fără răspuns: notificare de urgență către echipaj
-                    const msg = { kind: 'incap', reason: `Nu răspunde în testul ${r.meta.test}: ochii au ieșit din încadrare și testul a fost suspendat.`,
+                    const msg = { kind: 'incap', reason: `No answer during ${r.meta.test}: the eyes left the frame and the test was paused.`,
                                   from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
                     try { new BroadcastChannel('nabu-crew').postMessage(msg); } catch (e){}
                     try { localStorage.setItem('nabu.crew.msg', JSON.stringify(msg)); } catch (e){}
@@ -620,7 +620,7 @@ function create(opts = {}){
                     r.susp.push({ atS, phase, answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified });
                     try { window.dispatchEvent(new CustomEvent("nabu:checkin", { detail: { answer: res.answer, rtMs: res.rtMs, teamNotified: res.teamNotified, test: r.meta.test } })); } catch (e){}
                     if (res.teamNotified){                                  // anunță echipajul că astronautul a răspuns
-                      const c = { kind: 'cancel', reason: 'A răspuns după alertă', from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
+                      const c = { kind: 'cancel', reason: 'Answered after the alert', from: r.meta.astronaut, module: o.module || '–', t: Date.now(), id: Math.random().toString(36).slice(2) + Date.now(), fromId: 'bgmon' };
                       try { new BroadcastChannel('nabu-crew').postMessage(c); } catch (e){}
                       try { localStorage.setItem('nabu.crew.msg', JSON.stringify(c)); } catch (e){}
                     }
@@ -639,13 +639,13 @@ function create(opts = {}){
           if (f.geo){ r.qFrames++; for (const a of adviseCamera(f.geo)) r.quality[a.k] = (r.quality[a.k] || { k: a.k, msg: a.msg, n: 0 }), r.quality[a.k].n++; }
         });
         if (run !== r) return { ok: false, reason: 'oprit' };
-        if (o.showIndicator || source === 'camera') indicator(true, source === 'camera' ? 'Cameră activă · măsurare oboseală' : 'Monitor activ (simulare)');
+        if (o.showIndicator || source === 'camera') indicator(true, source === 'camera' ? 'Camera on · fatigue measurement' : 'Monitor on (simulation)');
         if (o.showFrame !== false) FrameUI.show();
-        if (source === 'camera' && !window.NABU_EMBED) notice('Camera a pornit. Ține ochii în chenarul din stânga sus.', 5000);
+        if (source === 'camera' && !window.NABU_EMBED) notice('The camera is on. Keep your eyes inside the box at the top left.', 5000);
         status('running'); return { ok: true };
       } catch (e){
         r.error = friendlyError(e); if (window.NABU_EMBED) try { parent.postMessage({ src: 'psy', type: 'camera-error', name: e && e.name }, '*'); } catch (_){}
-        try { src.stop(); } catch (_){} indicator(false); FrameUI.hide(); notice('Camera nu a pornit: ' + r.error, 12000); status('error'); return { ok: false, reason: r.error };
+        try { src.stop(); } catch (_){} indicator(false); FrameUI.hide(); notice('The camera did not start: ' + r.error, 12000); status('error'); return { ok: false, reason: r.error };
       }
     },
     /** Starea de acum, pentru afișare live (Nabu): minutul curent, fața, cât de închiși sunt ochii. */
