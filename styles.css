@@ -1723,3 +1723,6 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .psy-tab:hover { background: rgba(160,130,255,.2); }
 .psy-tab[hidden] { display: none; }
 @media (max-width: 640px) { .psy-tab { display: none; } }
+.testbar .tb-coins { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px var(--font-body); color: #e8ecf6; padding-left: 4px; }
+.testbar .tb-coins input { width: 82px; padding: 4px 7px; border-radius: 8px; border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.35); color: #fff; font: 600 12px var(--font-mono, monospace); }
+.testbar .tb-coins input:focus { outline: none; border-color: #3fc7b5; }

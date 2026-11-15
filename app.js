@@ -2702,12 +2702,19 @@ function testBar() {
   if ($("#testbar")) return;
   const b = document.createElement("div"); b.id = "testbar"; b.className = "testbar";
   b.innerHTML = `<span class="tb-tag">Test mode</span>
-    <button data-t="coins">+500 coins</button><button data-t="day">Next day</button><button data-t="week">+7 days</button>
+    <label class="tb-coins" title="Type any amount and press Enter">Coins <input id="tb-coins" type="number" min="0" step="1" inputmode="numeric"></label><button data-t="setcoins">Set</button><button data-t="coins">+500</button><button data-t="day">Next day</button><button data-t="week">+7 days</button>
     <button data-t="psy">Psychologist view ↗</button><button data-t="reset">Reset test</button><button data-t="exit" title="Leave test mode">✕</button>`;
   document.body.append(b); riskReadout();
+  // coins: type any amount (0 or more) and press Enter or Set
+  const ci = b.querySelector("#tb-coins"); ci.value = S.coins;
+  const setCoins = () => { const n = Math.max(0, Math.min(1e9, Math.floor(Number(ci.value)))); if (!Number.isFinite(n)) { ci.value = S.coins; return; }
+    S.coins = n; save(); renderHUD(); ci.value = n; toast(`Coins set to ${n.toLocaleString("en-US")}`); };
+  ci.onkeydown = (e) => { e.stopPropagation(); if (e.key === "Enter") setCoins(); };
+  ci.onfocus = () => ci.select(); setInterval(() => { if (document.activeElement !== ci) ci.value = S.coins; }, 1000);
   b.onclick = (e) => {
     const t = e.target.closest("button")?.dataset.t; if (!t) return;
     if (t === "coins") { S.coins += 500; save(); renderHUD(); toast("+500 coins"); }
+    if (t === "setcoins") setCoins();
     if (t === "day") nextDay();
     if (t === "week") { for (let i = 0; i < 7; i++) nextDay(true); renderHUD(); toast(`Day ${S.day}`); }
     if (t === "psy") openTab("doctor.html", "nabu-psy");
