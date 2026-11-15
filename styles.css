@@ -1719,3 +1719,7 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 
 .risk-chip { display: inline-flex; align-items: center; margin-left: 8px; padding: 4px 10px; border-radius: 999px; font: 600 11px var(--font-mono, monospace); color: #bfeee6; background: rgba(63,199,181,.12); border: 1px solid rgba(63,199,181,.35); white-space: nowrap; }
 .risk-chip.shut { color: #ffd9a8; background: rgba(226,166,59,.16); border-color: rgba(226,166,59,.5); }
+.psy-tab { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(200,180,255,.4); background: rgba(160,130,255,.1); color: #e2d9ff; font: 600 11px var(--font-body); text-decoration: none; margin-right: 8px; }
+.psy-tab:hover { background: rgba(160,130,255,.2); }
+.psy-tab[hidden] { display: none; }
+@media (max-width: 640px) { .psy-tab { display: none; } }

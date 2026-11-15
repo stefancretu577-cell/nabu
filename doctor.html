@@ -208,6 +208,7 @@ th { color: var(--mut); font: 500 12px var(--fb); } td.n { font-family: var(--fm
   <div class="me"><span class="av" style="--ax:3;--ay:3"></span><span><b>Dr. Irina Matei</b><small>Cognitive psychologist</small></span></div>
   <label class="linkbox" title="The link code shown at the top of the astronaut's Nabu"><span>Link code</span><input id="room" maxlength="8" spellcheck="false" autocomplete="off" placeholder="—"><i id="room-st"></i></label>
   <button class="freeze" id="freeze" title="Pause updates while you read; nothing is lost"><i></i><span>Live</span></button>
+  <button class="switch" id="astro-tab" title="Open the astronaut's Nabu in another tab (both stay open)">Astronaut ↗</button>
   <button class="switch" id="switch">Switch account</button>
 </header>
 <div class="sos" id="sos"></div>
@@ -572,7 +573,10 @@ window.addEventListener("storage", (e) => { if (e.key === "nabu.live") liveUpdat
 try { new BroadcastChannel("nabu-link").onmessage = (e) => { const d = e.data || {}; if (d.type === "hb") liveUpdate(d.hb); if (d.type === "act") soon(); }; } catch {}
 try { new BroadcastChannel("nabu-crew").onmessage = (e) => sos(e.data); } catch {}
 setInterval(render, 4000); setInterval(() => liveUpdate(), 3000);
-$("#switch").onclick = () => { location.href = "index.html"; };
+function openTab(url, name) { let w = null; try { w = window.open("", name); if (w && w.location.href === "about:blank") w.location.href = url; } catch { w = window.open(url, name); } if (w) w.focus(); return w; }
+window.name = "nabu-psy";
+$("#switch").onclick = () => { window.name = ""; location.href = "index.html"; };
+$("#astro-tab").onclick = () => { const w = openTab("index.html?as=astronaut", "nabu-astro"); if (!w) toast("Allow pop-ups to open the astronaut in a new tab."); };
 $("#freeze").onclick = () => { frozen = !frozen; if (!frozen) { forceNext = true; render(); } paintFreeze(); };
 $("#note-save").onclick = () => { const t = $("#notes").value.trim(); if (!t) { $("#notes").focus(); return; }
   const S = read("nabu.en.v2", {}); const h = read("bhc.history", []); h.push({ who: sel, day: S.day || 1, at: Date.now(), kind: "note", text: t }); write("bhc.history", h.slice(-500));

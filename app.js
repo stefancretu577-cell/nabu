@@ -2653,11 +2653,13 @@ function checkInbox() {
 window.addEventListener("storage", (e) => { if (e.key === "nabu.inbox") checkInbox(); });
 setInterval(checkInbox, 5000);
 
+/* opens a page in a named tab; when that tab is already open it is only brought forward, not reloaded */
+function openTab(url, name) { let w = null; try { w = window.open("", name); if (w && w.location.href === "about:blank") w.location.href = url; } catch { w = window.open(url, name); } if (w) w.focus(); return w; }
 /* ───────────────────────── the account gate ───────────────────────── */
 (() => {
   const gate = $("#gate"); if (!gate) return;
   const enterAstronaut = () => {
-    astronautOn = true; gate.hidden = true; heartbeat(); setTimeout(bgStart, 900); setTimeout(checkInbox, 2500); showLinkCode();
+    astronautOn = true; gate.hidden = true; window.name = "nabu-astro"; const pt = $("#psy-tab"); if (pt) { pt.hidden = false; pt.onclick = (e) => { e.preventDefault(); if (!openTab("doctor.html", "nabu-psy")) toast("Allow pop-ups to open the console in a new tab."); }; } heartbeat(); setTimeout(bgStart, 900); setTimeout(checkInbox, 2500); showLinkCode();
   };
   if (new URLSearchParams(location.search).get("as") === "astronaut") { enterAstronaut(); return; }
   // test mode skips the gate and the intro and lands on the base map, with a small panel of shortcuts
@@ -2670,8 +2672,9 @@ setInterval(checkInbox, 5000);
   if (TEST_MODE) { enterTest(); return; }
   $("#gate-astro").onclick = (e) => pick(e.currentTarget, enterAstronaut, 850);
   $("#gate-test").onclick = () => { location.href = location.pathname + "?test"; };
-  $("#gate-psy").onclick = (e) => pick(e.currentTarget, () => { location.href = "doctor.html"; }, 650);
-  $("#gate-both").onclick = () => { const w = window.open("doctor.html", "nabu-psy", "width=1440,height=900"); if (!w) toast("Allow pop-ups to open the console next to Nabu."); pick($("#gate-astro"), enterAstronaut, 850); };
+  $("#gate-psy").onclick = (e) => pick(e.currentTarget, () => { window.name = "nabu-psy"; location.href = "doctor.html"; }, 650);
+  // both: the console opens in a new tab (named, so it is reused), this tab becomes the astronaut
+  $("#gate-both").onclick = () => { const w = openTab("doctor.html", "nabu-psy"); if (!w) toast("Allow pop-ups to open the console in a new tab."); pick($("#gate-astro"), enterAstronaut, 850); };
   addEventListener("keydown", (e) => { if (!gate.hidden && !gate.classList.contains("leaving") && (e.key === "1" || e.key === "2")) $(e.key === "1" ? "#gate-astro" : "#gate-psy").click(); });
 })();
 
@@ -2707,7 +2710,7 @@ function testBar() {
     if (t === "coins") { S.coins += 500; save(); renderHUD(); toast("+500 coins"); }
     if (t === "day") nextDay();
     if (t === "week") { for (let i = 0; i < 7; i++) nextDay(true); renderHUD(); toast(`Day ${S.day}`); }
-    if (t === "psy") window.open("doctor.html", "nabu-psy", "width=1440,height=900");
+    if (t === "psy") openTab("doctor.html", "nabu-psy");
     if (t === "reset") { localStorage.removeItem(KEY); location.reload(); }
     if (t === "exit") { localStorage.removeItem(KEY); location.href = location.pathname; }
   };
