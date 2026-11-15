@@ -1065,12 +1065,14 @@ const pos = (b) => `left:${b.left}%;top:${b.top}%;width:${b.width}%;${b.height ?
 let screenZoom = false;
 function renderWall(r, refresh) {
   const box = $("#wall-ui"); if (!box) return;
-  if (!r || !r.command) { box.hidden = true; box.innerHTML = ""; screenZoom = false; $("#room").classList.remove("screenzoom"); $("#room .scene").style.transform = ""; return; }
+  if (!r || !r.command) { box.hidden = true; if (!box.querySelector("#tv-main")) box.innerHTML = ""; screenZoom = false; $("#room").classList.remove("screenzoom"); $("#room .scene").style.transform = ""; return; }
   box.hidden = false;
   if (refresh && box.querySelector("#tv-main")) { dailyUpdate(); return; }
+  // coming back: the app is still running behind a white screen, so it only has to fade in
+  if (box.querySelector("#tv-main")?.dataset.loaded) { const scr = $("#tv-screen"); scr.classList.remove("on"); scr.classList.add("boot"); fitHealth(); bootLaptop(); return; }
   box.innerHTML = `<div class="tv-host laptop" id="tv-host" style="${pos(CMD.screen)}">
       <div class="tv-screen boot" id="tv-screen"><iframe id="tv-main" title="Nabu Health" loading="eager"></iframe></div>
-      <div class="tv-osd" id="tv-osd2"></div><i class="tv-glass"></i></div>
+      <div class="tv-osd" id="tv-osd2"></div><div class="lap-boot" aria-hidden="true"><i></i><span>Starting Nabu Health…</span></div><i class="tv-glass"></i></div>
     <div class="kb-hint lap" id="kb-hint"><b>← →</b> chapters · <b>↑ ↓</b> scroll · or use the mouse on the screen</div>
     <div class="kb3" id="kb3" hidden></div>`;
   fitHealth(); bootLaptop();
@@ -1099,22 +1101,60 @@ async function bootLaptop() {
   const f = $("#tv-main"), scr = $("#tv-screen"); if (!f) return;
   while (moving) await new Promise((r) => setTimeout(r, 60));
   if ($("#tv-main") !== f) return;
-  const ready = new Promise((r) => { f.onload = r; setTimeout(r, 6000); });
-  f.src = `health/index.html#${tvChapter}`;
-  await ready; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  await new Promise((r) => setTimeout(r, 180));
+  if (!f.dataset.loaded) {
+    const ready = new Promise((r) => { f.onload = r; setTimeout(r, 6000); });
+    f.src = `health/index.html#${tvChapter}`;
+    await ready; f.dataset.loaded = "1"; tameLaptop(f.contentWindow);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => setTimeout(r, 180));
+  } else await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   scr?.classList.remove("boot"); scr?.classList.add("on");
   // then lean in: the laptop screen comes up to fill the frame so the app is easy to read
   if (!reducedMotion()) await new Promise((r) => setTimeout(r, 250));
-  if ($("#tv-main") === f) $("#room").classList.add("lapzoom");
+  if ($("#tv-main") === f) { leaning = true; $("#room").classList.add("lapzoom"); setTimeout(() => (leaning = false), reducedMotion() ? 0 : 950); }
+}
+// The app's 3D body redraws as fast as it can and runs on the game's own thread. Gate its frames from outside:
+// frozen while the game animates (arrivals, doors, the lean-in), 30 fps while you touch the app,
+// 4 fps when it is just on screen (the heart still beats), 1 fps when scrolled away. Everything in the app still works.
+let leaning = false;
+function tameLaptop(w) {
+  try {
+    if (!w || w.__tamed) return; w.__tamed = true;
+    const raf = w.requestAnimationFrame.bind(w), caf = w.cancelAnimationFrame.bind(w);
+    let seq = 0, allowedT = -1e9, visT = 0, vis = true, touchAt = 0; const ids = new Map();
+    const poke = () => (touchAt = performance.now());
+    ["pointerdown", "pointermove", "wheel", "keydown", "scroll"].forEach((ev) => w.addEventListener(ev, poke, { passive: true, capture: true }));
+    const canvasOnScreen = (t) => {
+      if (t - visT < 400) return vis; visT = t;
+      const c = w.document.querySelector("canvas"); if (!c) return (vis = false);
+      const r = c.getBoundingClientRect(); return (vis = r.bottom > 0 && r.top < w.innerHeight && r.width > 0);
+    };
+    const gapNow = (t) => (moving || leaning ? 1e9 : !canvasOnScreen(t) ? 1000 : performance.now() - touchAt < 2500 ? 32 : 250);
+    w.requestAnimationFrame = (cb) => {
+      const id = ++seq;
+      // between allowed frames the app asks for nothing at all (a timer, not a frame request), so it truly idles
+      const go = (t) => {
+        const gap = gapNow(t);
+        if (t !== allowedT && t - allowedT < gap) { const wait = Math.min(gap >= 1e9 ? 200 : gap - (t - allowedT), 1000); ids.set(id, -w.setTimeout(() => ids.has(id) && ids.set(id, raf(go)), wait)); return; }
+        allowedT = t; ids.delete(id); cb(t);
+      };
+      ids.set(id, raf(go)); return id;
+    };
+    w.cancelAnimationFrame = (id) => { const r = ids.get(id); if (r == null) return; if (r < 0) w.clearTimeout(-r); else caf(r); ids.delete(id); };
+  } catch {}
 }
 // before leaving, sit back so the closing clip starts from the same picture
+// The Health app (React + a 3D body) is never torn down: that costs seconds. It fades to white here, and when the
+// room changes it is only hidden (a hidden frame draws nothing), so coming back is instant.
 async function unzoomLaptop() {
-  const room = $("#room"); if (!room.classList.contains("lapzoom")) return;
-  room.classList.remove("lapzoom"); if (!reducedMotion()) await new Promise((r) => setTimeout(r, 520));
+  const room = $("#room"), f = $("#tv-main"), scr = $("#tv-screen");
+  room.classList.remove("lapzoom");
+  if (scr) { scr.classList.remove("on"); scr.classList.add("boot"); }
+  if (!reducedMotion()) await new Promise((r) => setTimeout(r, 480));
+  void f;
 }
 function fitHealth() { const h = $("#hs-host"), hs = $("#hs"); if (h && hs) hs.style.setProperty("--s", (h.clientWidth / HS_W).toFixed(4));
-  const th = $("#tv-host"), tf = $("#tv-main"); if (th && tf) { const k = th.clientWidth / TV_APP_W; tf.style.width = TV_APP_W + "px"; tf.style.height = Math.ceil(th.clientHeight / k) + "px"; tf.style.transform = `scale(${k})`; }
+  const th = $("#tv-host"), tf = $("#tv-main"); if (th && tf && th.clientWidth) { const k = th.clientWidth / TV_APP_W; tf.style.width = TV_APP_W + "px"; tf.style.height = Math.ceil(th.clientHeight / k) + "px"; tf.style.transform = `scale(${k})`; }
   const dh = $("#dy-host"), dy = $("#dy"); if (dh && dy) dy.style.setProperty("--s", (dh.clientWidth / DY_W).toFixed(4)); }
 
 /* ── the console keyboard: only its last three rows are in view. Arrows move through the chapters and scroll the TV,
@@ -2597,8 +2637,13 @@ ROOMS.forEach((r) => { const i = new Image(); i.src = imgUrl(r); });
 (() => {
   const c = $("#dust"); if (!c || reducedMotion()) return;
   const x = c.getContext("2d"); const motes = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), r: 0.4 + Math.random() * 1.3, vx: (Math.random() - 0.5) * 0.00012, vy: -0.00005 - Math.random() * 0.00012, p: Math.random() * 6.28 }));
+  // 20 fps is plenty for slow motes; nothing is drawn during transitions or at the laptop
+  let lastT = 0, cleared = false;
   const tick = (t) => {
-    if (view === "room") {
+    const show = view === "room" && !moving && !roomById(currentRoom)?.command && !document.hidden;
+    if (!show && !cleared) { x.clearRect(0, 0, c.width, c.height); cleared = true; }
+    if (show && t - lastT >= 50) {
+      lastT = t; cleared = false;
       const w = c.clientWidth, h = c.clientHeight; if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
       x.clearRect(0, 0, w, h);
       for (const m of motes) {
@@ -2680,6 +2725,6 @@ go("planet");
   const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
   const next = () => { const u = urls.shift(); if (!u) return; idle(() => { if (moving) { urls.unshift(u); return setTimeout(next, 600); } const im = new Image(); im.src = u; (im.decode ? im.decode() : Promise.resolve()).catch(() => {}).then(() => setTimeout(next, 60)); }, { timeout: 2000 }); };
   setTimeout(next, 2500);
-  setTimeout(() => idle(() => { if (moving) return; const w = document.createElement("div"); w.className = "hs"; w.style.cssText = "position:fixed;left:-4000px;top:0;visibility:hidden;pointer-events:none";
+  if (false) setTimeout(() => idle(() => { if (moving) return; const w = document.createElement("div"); w.className = "hs"; w.style.cssText = "position:fixed;left:-4000px;top:0;visibility:hidden;pointer-events:none";
     w.innerHTML = healthHTML(); document.body.append(w); void w.offsetHeight; setTimeout(() => w.remove(), 1500); }, { timeout: 3000 }), 1200);
 })();

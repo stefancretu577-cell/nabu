@@ -1675,3 +1675,11 @@ button { transition: transform .18s var(--ease-out), background-color .2s, borde
 .room.cmdroom.lapzoom .console-leave small, .room.cmdroom.lapzoom .exit-btn small { display: none; }
 .room.cmdroom.lapzoom .console-leave span, .room.cmdroom.lapzoom .exit-btn span { font-size: 12.5px; }
 .room.cmdroom .console-leave:active, .room.cmdroom .exit-btn:active { transform: scale(.95); }
+.room.cmdroom .tv-screen { transition: opacity .3s ease; }
+/* while the Health app starts, a loader on the white screen; it spins on the compositor, so it keeps moving
+   even while a slow laptop is busy starting the app */
+.lap-boot { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; gap: 1.1cqw; pointer-events: none;
+  color: #5b6b82; font: 600 max(12px, 1.05cqw) var(--font-body); opacity: 0; transition: opacity .35s ease; }
+.lap-boot i { width: 2.6cqw; height: 2.6cqw; min-width: 26px; min-height: 26px; border-radius: 50%; border: 3px solid rgba(63,199,181,.22); border-top-color: #3fc7b5; animation: lapSpin .8s linear infinite; will-change: transform; }
+@keyframes lapSpin { to { transform: rotate(360deg); } }
+.tv-host.laptop:has(.tv-screen.boot) .lap-boot { opacity: 1; transition-delay: .5s; }
