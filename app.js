@@ -2690,7 +2690,8 @@ function riskReadout() {
     const k = window.__nbmRisk; if (!k) { el.textContent = "camera: starting…"; return; }
     const cd = Math.max(0, 120 - Math.round((performance.now() - (window.__nbmLastPrompt || -1e12)) / 1000));
     el.className = "risk-chip" + (k.shut ? " shut" : "");
-    el.textContent = !k.face ? (k.slumpFor ? `face lost ${(k.slumpFor / 1000).toFixed(1)} s` : "no face") : k.shut ? `eyes closed ${(k.closedFor / 1000).toFixed(1)} s / 6` : `eyes open · microsleeps ${k.micro}`;
+    el.textContent = !k.face ? (k.slumpFor ? `face lost ${(k.slumpFor / 1000).toFixed(1)} s / 6` : "no face") : k.faintFor ? `head dropped · still ${(k.faintFor / 1000).toFixed(1)} s / 5` : k.drop ? "head dropped · watching" : k.shut ? `eyes closed ${(k.closedFor / 1000).toFixed(1)} s / 6` : `eyes open · microsleeps ${k.micro}`;
+    el.className = "risk-chip" + (k.shut || k.drop ? " shut" : "");
     if (cd > 0 && cd < 120) el.textContent += ` · next check in ${cd} s`;
   }, 200);
 }

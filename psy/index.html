@@ -187,10 +187,11 @@ function irisOpen(L, lids, iris, W, H){
   return { open: lids.reduce((s, [u, l]) => s + d(P(u), P(l)), 0) / lids.length / diam, diam };
 }
 function headAngles(m){
-  if (!m || !m.data) return { yaw: 0, pitch: 0 };
+  if (!m || !m.data) return { yaw: 0, pitch: 0, roll: 0 };
   const r = (i, j) => m.data[j * 4 + i];
   let pitch = Math.atan2(r(2, 1), r(2, 2)) * 180 / Math.PI; if (pitch > 90) pitch -= 180; if (pitch < -90) pitch += 180;
-  return { yaw: Math.asin(clamp(-r(2, 0), -1, 1)) * 180 / Math.PI, pitch };
+  const roll = Math.atan2(r(1, 0), r(0, 0)) * 180 / Math.PI;
+  return { yaw: Math.asin(clamp(-r(2, 0), -1, 1)) * 180 / Math.PI, pitch, roll };
 }
 let landmarkerP = null;
 function loadLandmarker(){
@@ -241,7 +242,7 @@ class CameraSource {
             let x0 = 1, x1 = 0, y0 = 1, y1 = 0; for (const p of L){ if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
             const ei = L.length >= 478 ? [468, 473] : [33, 263], eyeX = (L[ei[0]].x + L[ei[1]].x) / 2, eyeY = (L[ei[0]].y + L[ei[1]].y) / 2;
             if (++this.n % 10 === 0) this.sampleLight(x0, y0, x1, y1);
-            f = { t: now, face: true, ear: open, blink: avg(g('eyeBlinkLeft'), g('eyeBlinkRight')), yaw: ang.yaw, pitch: ang.pitch,
+            f = { t: now, face: true, ear: open, blink: avg(g('eyeBlinkLeft'), g('eyeBlinkRight')), yaw: ang.yaw, pitch: ang.pitch, roll: ang.roll,
                   geo: { face: true, cx: (x0 + x1) / 2, cy: eyeY, w: x1 - x0, eyeX, eyeY, eyes: [{ x: L[ei[0]].x, y: L[ei[0]].y }, { x: L[ei[1]].x, y: L[ei[1]].y }], yaw: ang.yaw, irisPx,
                          lookDown: avg(g('eyeLookDownLeft'), g('eyeLookDownRight')), lookUp: avg(g('eyeLookUpLeft'), g('eyeLookUpRight')), lum: this.lum, faceLum: this.faceLum } };
             if (this.focusOnEyes) this.focusOnEyes(eyeX, eyeY);
@@ -507,7 +508,8 @@ function suspendOverlay(answerMs, onNoAnswer, why){
     SuspendUI.close();
     const WHY = { 'eyes closed for 6 s': 'Your eyes have been closed for a few seconds.',
       'eyes closed for 3 s after repeated microsleeps': 'Your eyes keep closing for longer than a blink.',
-      'head dropped after the eyes closed': 'Your head dropped right after your eyes closed.' };
+      'head dropped after the eyes closed': 'Your head dropped right after your eyes closed.',
+      'possible faint': 'Your head dropped suddenly and you have not moved since.' };
     const reason = WHY[why] || 'We noticed signs that you may be very tired.';
     const w = SuspendUI.w = document.createElement('div'); w.id = 'nabu-bgmon-suspend';
     w.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:20px;background:rgba(6,10,22,.62);backdrop-filter:blur(3px);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#e8eef8;animation:nbmIn .35s ease-out both';
@@ -610,26 +612,53 @@ function create(opts = {}){
           if (k.openSince == null) k.openSince = now;
           // a single "open" frame inside a closure is noise: only 0.4 s of open eyes ends it
           if (k.closedSince != null && now - k.openSince > 400){
-            const d = k.openSince - k.closedSince; if (d >= 1000 && d < 3000) k.micro.push(now);
+            const d = k.openSince - k.closedSince; if (d >= 1000 && d < 3000) k.micro.push(now); if (d < 500) k.blinkEnd = now;
             k.closedSince = null; k.lastFaceClosedMs = 0;
           }
         }
       } else if (!(k.closedSince != null && now - k.lastFaceT < 2000)){
         // the face model often loses a face with closed eyes for a moment; longer than 2 s after a ≥ 1 s closure = head dropped
-        if (k.slumpSince == null && k.lastFaceClosedMs >= 1000 && now - k.lastFaceT < 2600) k.slumpSince = k.lastFaceT;
+        if (k.slumpSince == null && (k.lastFaceClosedMs >= 1000 || (k.fd && k.fd.dropAt != null && k.lastFaceT - k.fd.dropAt < 1500)) && now - k.lastFaceT < 2600) k.slumpSince = k.lastFaceT;
         k.closedSince = null;
       }
+      // (D) possible faint. Syncope on video (Lempert 1994): loss of postural tone, the eyes usually stay OPEN and often
+      // turn up, then the person is still apart from brief jerks. Rule: a fast head drop (eyes move ≥ 10 % of the frame
+      // down, or the head tilts ≥ 22° forward/back or sideways, within 1 s), then ≥ 5 s of stillness with no blink and
+      // the eyes either closed or turned up. Brief jerks (< 0.6 s) do not break the stillness.
+      const fd = k.fd || (k.fd = { hist: [], dropAt: null, stillSince: null, breakMs: 0, lastBlinkT: -1e12, prevT: now });
+      const dt = Math.min(250, Math.max(0, now - fd.prevT)); fd.prevT = now;
+      if (k.blinkEnd){ fd.lastBlinkT = k.blinkEnd; k.blinkEnd = 0; }
+      if (f.face && f.geo){
+        const g = f.geo;
+        fd.hist.push({ t: now, y: g.eyeY != null ? g.eyeY : g.cy, x: g.eyeX != null ? g.eyeX : g.cx, p: f.pitch || 0, r: f.roll || 0 });
+        fd.hist = fd.hist.filter(h => now - h.t <= 1000);
+        const H = fd.hist, cur = H[H.length - 1], rng = (key) => { let lo = Infinity, hi = -Infinity; for (const h of H){ lo = Math.min(lo, h[key]); hi = Math.max(hi, h[key]); } return hi - lo; };
+        const minY = Math.min(...H.map(h => h.y));
+        const dropped = H.length > 3 && (cur.y - minY >= 0.10 || rng('p') >= 22 || rng('r') >= 22);
+        if (dropped && (fd.dropAt == null || now - fd.dropAt > 3000)){ fd.dropAt = now; fd.stillSince = null; fd.breakMs = 0; }
+        if (fd.dropAt != null){
+          // stillness over the last second: small range of position and angles
+          const recent = H.filter(h => now - h.t <= 1000), rr = (key) => { let lo = Infinity, hi = -Infinity; for (const h of recent){ lo = Math.min(lo, h[key]); hi = Math.max(hi, h[key]); } return hi - lo; };
+          const still = now - fd.dropAt > 700 && rr('y') <= 0.025 && rr('x') <= 0.025 && rr('p') <= 5 && rr('r') <= 5;
+          if (still){ if (fd.stillSince == null) fd.stillSince = now; fd.breakMs = Math.max(0, fd.breakMs - dt); }
+          else if (fd.stillSince != null){ fd.breakMs += dt; if (fd.breakMs > 600){ fd.dropAt = null; fd.stillSince = null; fd.breakMs = 0; } }
+          else if (now - fd.dropAt > 2500){ fd.dropAt = null; }                         // moving on after the drop: just a movement
+        }
+      }
+      const eyesBad = shut || ((f.geo && f.geo.lookUp) || 0) >= 0.4;
+      const faintFor = fd.stillSince != null && fd.lastBlinkT < fd.stillSince && eyesBad ? now - fd.stillSince : 0;
       k.micro = k.micro.filter(t => now - t < 300000);
       const closedFor = k.closedSince != null ? now - k.closedSince : 0;
-      root.__nbmRisk = { face: !!f.face, shut, closedFor, micro: k.micro.length, slumpFor: k.slumpSince != null ? now - k.slumpSince : 0 };
+      root.__nbmRisk = { face: !!f.face, shut, closedFor, micro: k.micro.length, slumpFor: k.slumpSince != null ? now - k.slumpSince : 0, drop: fd.dropAt != null, faintFor };
       let why = null;
       if (closedFor >= 6000) why = 'eyes closed for 6 s';
       else if (closedFor >= 3000 && k.micro.length >= 2) why = 'eyes closed for 3 s after repeated microsleeps';
       else if (k.slumpSince != null && now - k.slumpSince >= 6000) why = 'head dropped after the eyes closed';
+      else if (faintFor >= 5000) why = 'possible faint';
       if (!why || r.suspOpen || document.hidden) return;
       if (performance.now() - (root.__nbmLastInput || -1e12) < 8000) return;          // using the device: clearly responsive
       if (performance.now() - (root.__nbmLastPrompt || -1e12) < CFG.promptCooldownMs) return;
-      askOK(r, why); k.micro = []; k.slumpSince = null; k.closedSince = null;
+      askOK(r, why); k.micro = []; k.slumpSince = null; k.closedSince = null; fd.dropAt = null; fd.stillSince = null;
     }
     // Emergency only (no answer): one small still from the camera, to see where the astronaut is. Never at any other time.
     function emergencyStill(r){
